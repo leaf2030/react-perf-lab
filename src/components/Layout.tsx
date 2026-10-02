@@ -36,6 +36,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
     items: [
       { to: '/profiler', label: '⑧ 用 Profiler 量化性能' },
       { to: '/compare', label: '⑨ Vue ↔ React 对照' },
+      { to: '/react19', label: '⑩ React 19 新特性' },
     ],
   },
 ]

@@ -1,4 +1,5 @@
-import { memo, useDeferredValue, useMemo, useState, useTransition } from 'react'
+import { memo, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { flushSync } from 'react-dom'
 import { DemoCard } from '../components/DemoCard'
 import { PageHeader, Panel } from '../components/PageHeader'
 import { RenderBadge } from '../components/RenderBadge'
@@ -197,6 +198,179 @@ function TransitionDemo() {
 }
 
 /* =========================================================================
+   Demo 3：useEffect vs useLayoutEffect —— 时机决定了会不会闪
+   ========================================================================= */
+
+/** 让"闪一下"变得肉眼可见：故意让 effect 里的计算慢一点 */
+const LAYOUT_COST_MS = 30
+
+function LayoutEffectDemo() {
+  const [tick, setTick] = useState(0)
+  const [useLayout, setUseLayout] = useState(true)
+
+  return (
+    <div className="stack">
+      <div className="row">
+        <label className="switch">
+          <input type="checkbox" checked={useLayout} onChange={(event) => setUseLayout(event.target.checked)} />
+          <span>使用 useLayoutEffect（关掉则用 useEffect）</span>
+        </label>
+        <button type="button" className="btn" onClick={() => setTick((value) => value + 1)}>
+          重排一次（同一个方块，两种时机）
+        </button>
+        <span className="hint">第 {tick} 次</span>
+      </div>
+
+      {/* key 里带上 tick：每次点击都换一个新组件，保证 effect 一定重新执行 */}
+      <div className="grid-2">
+        <TimedEffectProbe key={`layout-${tick}`} tick={tick} useLayoutEffect />
+        <TimedEffectProbe key={`effect-${tick}`} tick={tick} useLayoutEffect={false} />
+      </div>
+
+      <p className="hint">
+        反复点「重排一次」，盯着左边那块：<b>左边的方块会直接出现在最终位置，右边的方块会先出现在起点、再跳到终点</b>（闪一下）。
+        原因很直接 —— <code>useEffect</code> 是在浏览器<b>已经绘制之后</b>才执行的，所以中间那一帧被用户看见了；
+        <code>useLayoutEffect</code> 在<b>绘制之前、DOM 更新之后</b>同步执行，用户永远看不到中间态。
+      </p>
+      <p className="hint">
+        所以：<b>凡是「读取布局 → 立刻改样式」的操作，必须用 useLayoutEffect</b>（测量 DOM、滚动定位、tooltip 定位、动画起点）。
+        但它是<b>同步阻塞绘制</b>的，做重活会把页面卡死 —— 这个 Demo 里的 {' '}
+        <code>{LAYOUT_COST_MS}ms</code> 你在左边是能感受到的。
+        其余所有场景（请求、订阅、日志）一律用 useEffect。
+      </p>
+    </div>
+  )
+}
+
+/**
+ * 同一个方块，两种 effect 时机。
+ *
+ * - useLayoutEffect：绘制前同步执行 → 用户看不到中间态，但会阻塞绘制
+ * - useEffect：绘制后异步执行 → 用户能看到"先这样、再那样"的闪烁
+ */
+function TimedEffectProbe({ tick, useLayoutEffect: useLayout }: { tick: number; useLayoutEffect: boolean }) {
+  const blockRef = useRef<HTMLDivElement>(null)
+
+  // 两种时机共用同一段逻辑，方便对照
+  function reposition() {
+    // 模拟"读取布局 → 计算 → 写样式"这套不可避免的同步操作
+    simulateWork(LAYOUT_COST_MS)
+    if (blockRef.current) {
+      // 用一个随 tick 变化的偏移，让位置每次都不一样
+      const pct = 8 + ((tick * 37) % 84)
+      blockRef.current.style.marginLeft = `${pct}%`
+      blockRef.current.dataset.done = '1'
+    }
+  }
+
+  const EffectHook = useLayout ? useLayoutEffect : useEffect
+
+  EffectHook(() => {
+    reposition()
+  }, [tick])
+
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      <p className="hint" style={{ margin: 0 }}>
+        <b style={{ color: useLayout ? 'var(--good)' : 'var(--bad)' }}>
+          {useLayout ? 'useLayoutEffect' : 'useEffect'}
+        </b>
+        <span style={{ marginLeft: 8, fontSize: 11 }}>
+          {useLayout ? '绘制前执行 → 无闪烁' : '绘制后执行 → 会闪一下'}
+        </span>
+      </p>
+      <div className="effect-track">
+        <div className="effect-block" ref={blockRef} />
+      </div>
+      <span className="hint" style={{ fontSize: 11 }}>
+        {useLayout ? '这一帧用户只看到最终位置' : '先渲染在起点 → 绘制 → 再跳到终点'}
+      </span>
+    </div>
+  )
+}
+
+/* =========================================================================
+   Demo 4：flushSync —— 主动放弃并发特性的"反面教材"
+   ========================================================================= */
+
+function FlushSyncDemo() {
+  const renders = useRenderCount('FlushSyncDemo')
+  const [items, setItems] = useState<string[]>([])
+  const [mode, setMode] = useState<'normal' | 'flush'>('normal')
+  const logRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  function add(inFlush: boolean) {
+    const task = () => {
+      setItems((list) => [...list, `任务 #${list.length + 1}`])
+      setMode(inFlush ? 'flush' : 'normal')
+    }
+
+    if (inFlush) {
+      // ⚠️ flushSync 会强制这次更新立刻同步渲染、立刻提交
+      flushSync(task)
+    } else {
+      task()
+    }
+
+    // 这一行是 Demo 的关键：普通模式下它会在"渲染之前"执行，
+    // 而 flushSync 之后 DOM 已经被更新完了。
+    // 注意要读的是列表容器（listRef），不是日志这一行自己。
+    if (logRef.current && listRef.current) {
+      const count = listRef.current.querySelectorAll('.tag').length
+      logRef.current.textContent =
+        `点击后立刻读 DOM：列表里有 ${count} 个任务` +
+        (inFlush ? '（flushSync：DOM 已同步更新 ✅）' : '（普通更新：读到的是旧 DOM ⚠️）')
+    }
+  }
+
+  return (
+    <div className="stack">
+      <div className="row">
+        <button type="button" className="btn" onClick={() => add(false)}>
+          普通 setState
+        </button>
+        <button type="button" className="btn btn--danger" onClick={() => add(true)}>
+          用 flushSync 包住
+        </button>
+        <button type="button" className="btn btn--ghost" onClick={() => setItems([])}>
+          清空
+        </button>
+        <RenderBadge name="FlushSyncDemo" count={renders} />
+        {mode === 'flush' ? <span className="tag tag--soft">上一次用了 flushSync</span> : null}
+      </div>
+
+      <div className="row" ref={logRef} style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--warn)' }}>
+        点一个按钮试试
+      </div>
+
+      <div className="row" ref={listRef} style={{ flexWrap: 'wrap', gap: 6 }}>
+        {items.map((item) => (
+          <span className="tag tag--soft" key={item}>
+            {item}
+          </span>
+        ))}
+      </div>
+
+      <p className="hint">
+        左边的按钮是普通更新，右边包了 <code>flushSync</code>。点完看一眼上面那行日志：
+        <b>普通模式下 DOM 还没更新</b>（读到的还是旧数量），<b>flushSync 后 DOM 已经变了</b>。
+      </p>
+      <p className="hint">
+        这正是 flushSync 的用途：<b>少数必须"写完立刻读 DOM"的场景</b>，比如先测量再弹层、把某个节点滚到可视区、
+        配合第三方非 React 图表库同步尺寸。
+      </p>
+      <p className="hint" style={{ color: 'var(--bad)' }}>
+        ⚠️ 但它的代价是：<b>强制同步渲染，等于主动关掉并发特性</b> —— 这次更新不能被中断、不能被打断优先级，
+        而且会打断批处理（可能多渲染几次）。在渲染很贵的页面上用它会直接掉帧。
+        结论：<b>默认永远不要用，只在"测量 DOM 后立刻操作 DOM"这一种场景下用，并且包在最小范围里。</b>
+        如果需要刷新 DOM 同步更新，优先考虑改用 <code>useLayoutEffect</code>。
+      </p>
+    </div>
+  )
+}
+
+/* =========================================================================
    页面
    ========================================================================= */
 
@@ -206,8 +380,8 @@ export default function ConcurrentPage() {
       <PageHeader
         index="07"
         title="并发渲染特性"
-        subtitle="useTransition 和 useDeferredValue 是 React 18 给的两个「体感优化」利器：它们不会让渲染变快，但能让重要的交互不被慢渲染挡住。"
-        tags={['useTransition', 'useDeferredValue', '并发渲染', '可中断渲染']}
+        subtitle="useTransition 和 useDeferredValue 是 React 18 给的两个「体感优化」利器：它们不会让渲染变快，但能让重要的交互不被慢渲染挡住。本章还会讲清两个决定「会不会闪」的时机类 API。"
+        tags={['useTransition', 'useDeferredValue', 'useLayoutEffect', 'flushSync', '并发渲染']}
       />
 
       <Panel title="并发渲染到底改变了什么">
@@ -295,6 +469,79 @@ return (
         <TransitionDemo />
       </DemoCard>
 
+      <DemoCard
+        title="Demo 3｜useEffect vs useLayoutEffect：时机决定了会不会闪"
+        tag="API（必讲）"
+        tone="bad"
+        desc="两个 effect 长得几乎一样，区别只在「什么时候执行」。而这一点差异，直接决定了用户会不会看到闪烁。"
+        points={[
+          '执行时机：useLayoutEffect 在 DOM 更新后、浏览器绘制前同步执行；useEffect 在绘制之后异步执行。',
+          '所以「读取布局 → 立刻写样式」这类操作必须用 useLayoutEffect，否则用户会看到中间态（闪一下）。',
+          '但 useLayoutEffect 是同步阻塞绘制的：里面做重活，页面会一直白屏 / 卡住。这个 Demo 故意放了 30ms，能明显感到延迟。',
+          '默认选择永远是 useEffect；只有"必须在绘制前同步改 DOM"时才换成 useLayoutEffect。',
+          '两者都要返回清理函数（取消订阅、清定时器），否则重复执行会累积副作用。',
+          'React 在服务端渲染（SSR）时会忽略 useLayoutEffect 并打印警告（因为服务端没有 DOM、也没有"绘制"），这是选型时要考虑的一点。',
+          '⚠️ Vue 对照：不要以为 useLayoutEffect 对应 nextTick。nextTick 等的是"DOM 更新完成"（相当于绘制前），而 useEffect 等的是"绘制之后"—— 所以 nextTick 的时机更接近 useLayoutEffect。这是从 Vue 过来最容易搞混的一处。',
+        ]}
+        codeTone="good"
+        code={`// ❌ useEffect：绘制之后才改样式 → 用户先看到旧位置，再看到跳动
+useEffect(() => {
+  const height = ref.current.getBoundingClientRect().height
+  ref.current.style.transform = \`translateY(\${height}px)\`
+}, [deps])
+
+// ✅ useLayoutEffect：绘制前同步执行 → 用户只看到最终结果
+useLayoutEffect(() => {
+  const height = ref.current.getBoundingClientRect().height
+  ref.current.style.transform = \`translateY(\${height}px)\`
+}, [deps])
+
+// ✅ 常规用途一律用 useEffect（不阻塞绘制）
+useEffect(() => {
+  const sub = store.subscribe(handler)
+  return () => sub.unsubscribe()   // 别忘了清理
+}, [store])`}
+      >
+        <LayoutEffectDemo />
+      </DemoCard>
+
+      <DemoCard
+        title="Demo 4｜flushSync：主动放弃并发特性的反面教材"
+        tone="bad"
+        desc="它能让你「更新完立刻读到新 DOM」，代价是这次更新彻底失去并发能力。"
+        points={[
+          'flushSync 强制这次更新同步渲染并立刻提交到 DOM —— 相当于临时退回 React 17 的同步模式。',
+          '唯一合理的用途：必须在同一个事件回调里「先写完、再读 DOM」的场景（测量后定位、滚动到指定节点、同步第三方库尺寸）。',
+          '副作用一：这次更新不能被中断，也无法被打断优先级 —— 页面上正在做的并发优化对它无效。',
+          '副作用二：它会拆掉批处理，一次逻辑里多个 setState 可能变成多次渲染。',
+          '替代方案优先考虑 useLayoutEffect：它同样能在"绘制前"读到最新 DOM，但不破坏并发调度。',
+          '如果非用不可，把范围包到最小：只包必须同步的那一次更新，不要整个事件处理函数都包进去。',
+        ]}
+        codeTone="good"
+        code={`// ❌ 用 flushSync 只是为了"更新后立刻读 DOM"
+function handleClick() {
+  flushSync(() => setOpen(true))
+  // 现在 DOM 已经更新了，可以测量了
+  const rect = popoverRef.current.getBoundingClientRect()
+  // ⚠️ 但这次更新失去了并发能力，还可能多渲染
+}
+
+// ✅ 更好的写法：用 useLayoutEffect，绘制前自动拿到最新布局
+function Popover({ open }) {
+  useLayoutEffect(() => {
+    if (!open) return
+    const rect = popoverRef.current.getBoundingClientRect()
+    // 在这里定位，不破坏并发调度
+  }, [open])
+}
+
+// ⚠️ flushSync 也会打断批处理
+flushSync(() => setA(1))
+flushSync(() => setB(2))   // 两次渲染，而不是一次`}
+      >
+        <FlushSyncDemo />
+      </DemoCard>
+
       <Panel title="useDeferredValue vs 手写 debounce">
         <table className="table">
           <thead>
@@ -342,6 +589,9 @@ return (
           <li>不要用它包裹受控输入框的 onChange，会让输入变卡；反过来，用它包裹「由输入引起的慢列表更新」才对。</li>
           <li>并发特性要求 React 18+ 的 createRoot，且只在「渲染真的慢」的时候才有价值 —— 渲染很快的组件加了它反而多一次渲染。</li>
           <li>配合 Suspense 使用时，注意 transition 期间的 fallback 行为：React 会尽量保留旧内容，而不是闪一下骨架屏。</li>
+          <li>
+            <code>flushSync</code> 与本章其它 API 正好相反：它是「退出并发模式」的开关，属于逃生舱，不属于优化手段。
+          </li>
         </ul>
       </Panel>
     </>

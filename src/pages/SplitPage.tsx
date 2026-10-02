@@ -203,7 +203,8 @@ function FaultTolerantDemo() {
 
   // attempt 变化时创建一个全新的 lazy 组件，React 才会重新执行 loader
   // （React 会记住一个 lazy 组件的失败状态，不换新的实例，重试就是空转）
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // 这个工程用 oxlint，禁用语法是 oxlint-disable-next-line（不是 eslint-disable，写了不生效）
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   const FlakyChart = useMemo(() => lazy(makeFaultyLoader(attempt)), [attempt])
   const renders = useRenderCount('FaultTolerantDemo')
 
@@ -231,7 +232,7 @@ function FaultTolerantDemo() {
       >
         <Suspense fallback={<ChartSkeleton />}>
           {/* 重试必须换成一个新的 lazy 组件，所以这里刻意在 render 期间创建组件 */}
-          {/* eslint-disable-next-line react/static-components */}
+          {/* oxlint-disable-next-line react/no-unstable-nested-components */}
           <FlakyChart title="重试之后成功加载的图表" />
         </Suspense>
       </ErrorBoundary>

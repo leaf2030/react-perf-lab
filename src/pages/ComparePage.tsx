@@ -218,8 +218,14 @@ export default function ComparePage() {
               <td>
                 <code>&lt;KeepAlive&gt;</code>
               </td>
-              <td>没有等价物</td>
-              <td>React 要靠「状态提升到 store」或保持组件挂载来实现</td>
+              <td>
+                <code>&lt;Activity&gt;</code>（React 19.2+）
+              </td>
+              <td>
+                <b style={{ color: 'var(--warn)' }}>⚠️ 这条结论已更新</b>：过去说"没有等价物"，
+                现在官方有了。<code>&lt;Activity mode="hidden"&gt;</code> 保留 state 和 DOM，同时停掉内部 Effect。
+                React 19.2 之前只能靠「状态提升到 store」或保持组件挂载来模拟。详见第 10 章。
+              </td>
             </tr>
             <tr>
               <td>只渲染一次</td>
@@ -247,9 +253,13 @@ export default function ComparePage() {
                 <code>nextTick</code>
               </td>
               <td>
-                <code>useEffect / useLayoutEffect</code>
+                <code>useLayoutEffect</code> / <code>useEffect</code>
               </td>
-              <td>layoutEffect 在浏览器绘制前同步执行</td>
+              <td>
+                别搞混：<code>nextTick</code> 等的是"DOM 已更新、尚未绘制"，时机其实更接近{' '}
+                <code>useLayoutEffect</code>（绘制前同步执行）。
+                <code>useEffect</code> 是<b>绘制之后</b>才跑，所以"先测量再改样式"用它一定会闪一下。
+              </td>
             </tr>
           </tbody>
         </table>

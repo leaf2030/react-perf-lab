@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useReducer, useRef, useState } from 'react'
 import { DemoCard } from '../components/DemoCard'
 import { HeavyBox } from '../components/HeavyBox'
 import { PageHeader, Panel } from '../components/PageHeader'
@@ -300,6 +300,192 @@ function BatchingDemo() {
 }
 
 /* =========================================================================
+   Demo 5：useReducer —— dispatch 的引用是"永久稳定"的
+   ========================================================================= */
+
+type CartState = { count: number; total: number }
+type CartAction = { type: 'add'; price: number } | { type: 'reset' }
+
+function cartReducer(state: CartState, action: CartAction): CartState {
+  switch (action.type) {
+    case 'add':
+      return { count: state.count + 1, total: state.total + action.price }
+    case 'reset':
+      return { count: 0, total: 0 }
+    default:
+      return state
+  }
+}
+
+/**
+ * 用 memo 包住的「昂贵」子组件。
+ *
+ * 它的 props 里带着一个"派发更新的函数"。
+ * React 保证 dispatch 的引用在组件生命周期内**永远不变**，
+ * 所以 memo 的浅比较一定能通过 → 父组件重渲染时它会被完全跳过。
+ */
+const StableDispatchChild = memo(function StableDispatchChild({
+  dispatch,
+}: {
+  dispatch: (action: CartAction) => void
+}) {
+  const renders = useRenderCount('memo 子组件')
+  return (
+    <div className="heavy">
+      <div className="row">
+        <span className="heavy__name">加购按钮（dispatch 通过 props 传入）</span>
+        <RenderBadge name="memo 子组件" count={renders} tone="cool" />
+      </div>
+      <button type="button" className="btn" onClick={() => dispatch({ type: 'add', price: 100 })}>
+        加一件 ¥100
+      </button>
+    </div>
+  )
+})
+
+function ReducerDemo() {
+  const renders = useRenderCount('ReducerDemo')
+  const [state, dispatch] = useReducer(cartReducer, { count: 0, total: 0 })
+  // 一个"无关"的 state：用来制造父组件的重渲染，检验子组件能不能被挡住
+  const [keyword, setKeyword] = useState('')
+
+  return (
+    <div className="stack">
+      <div className="row">
+        <input
+          type="text"
+          value={keyword}
+          placeholder="随便打点字 → 父组件重渲染"
+          onChange={(event) => setKeyword(event.target.value)}
+        />
+        <RenderBadge name="ReducerDemo（父）" count={renders} />
+      </div>
+
+      <StableDispatchChild dispatch={dispatch} />
+
+      <div className="stat-grid">
+        <div className="stat">
+          <span className="stat__label">件数</span>
+          <span className="stat__value">{state.count}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">总价</span>
+          <span className="stat__value stat--good">¥{state.total}</span>
+        </div>
+      </div>
+
+      <p className="hint">
+        在输入框里打字，父组件渲染次数一直在涨，但右边「memo 子组件」的次数<b>纹丝不动</b> ——
+        因为 <code>dispatch</code> 的引用从挂载到卸载都不会变，memo 的浅比较永远通过。
+      </p>
+    </div>
+  )
+}
+
+/* =========================================================================
+   Demo 6：useRef 存"不参与渲染的值"
+   ========================================================================= */
+
+/** 每次渲染都会执行一次的重活，用来放大"无意义渲染"的代价 */
+function ExpensiveReadout({ label, value }: { label: string; value: string }) {
+  const renders = useRenderCount(label)
+  return (
+    <div className="row" style={{ justifyContent: 'space-between' }}>
+      <span className="hint">{label}</span>
+      <span className="row" style={{ gap: 8 }}>
+        <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{value}</b>
+        <RenderBadge name={label} count={renders} />
+      </span>
+    </div>
+  )
+}
+
+function RefVsStateDemo() {
+  // ❌ 鼠标位置、计时次数这类"不需要显示在界面上"的值，如果放进 state…
+  const [tick, setTick] = useState(0)
+  const [mouse, setMouse] = useState({ x: 0, y: 0 })
+  const [clicks, setClicks] = useState(0)
+
+  // ✅ 同样的数据放在 ref 里：改了不会有任何渲染
+  const tickRef = useRef(0)
+  const mouseRef = useRef({ x: 0, y: 0 })
+  const clicksRef = useRef(0)
+
+  const renders = useRenderCount('RefVsStateDemo')
+
+  return (
+    <div className="stack">
+      <div className="row">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            // 左边：每个 tick 都触发一次完整重渲染
+            setTick((value) => value + 1)
+            // 右边：同样的累加，只是写进 ref —— 零渲染
+            tickRef.current += 1
+          }}
+        >
+          模拟定时器心跳一次
+        </button>
+
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setMouse({ x: Math.round(Math.random() * 1000), y: Math.round(Math.random() * 1000) })
+            mouseRef.current = { x: Math.round(Math.random() * 1000), y: Math.round(Math.random() * 1000) }
+          }}
+        >
+          模拟鼠标移动一次
+        </button>
+
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setClicks((value) => value + 1)
+            clicksRef.current += 1
+          }}
+        >
+          点击计数一次
+        </button>
+
+        <RenderBadge name="RefVsStateDemo" count={renders} />
+      </div>
+
+      <div className="grid-2">
+        <div className="panel panel--bad">
+          <h4 className="panel__title">❌ 放进 useState</h4>
+          <ExpensiveReadout label="心跳次数" value={String(tick)} />
+          <ExpensiveReadout label="鼠标坐标" value={`${mouse.x}, ${mouse.y}`} />
+          <ExpensiveReadout label="点击次数" value={String(clicks)} />
+          <p className="hint" style={{ marginBottom: 0 }}>
+            每点一次，三个组件全部重渲染 —— 但界面上真正需要跟着变的，其实只有被显示出来的那个数字。
+          </p>
+        </div>
+
+        <div className="panel panel--good">
+          <h4 className="panel__title">✅ 放进 useRef</h4>
+          <p className="hint" style={{ margin: '0 0 8px' }}>
+            上面三个按钮每次点击都会同时更新 ref，但 ref 里的值<b>不参与渲染</b>，
+            所以这块面板的数字不会刷新，页面也不会重渲染。
+          </p>
+          <p className="hint" style={{ margin: '0 0 8px' }}>
+            想验证的话：打开顶栏的「控制台渲染日志」，点几次按钮 ——
+            「RefVsStateDemo」的渲染次数会涨（因为左边那三个 setState），
+            但 ref 分支不产生任何额外渲染。
+          </p>
+          <p className="hint" style={{ marginBottom: 0 }}>
+            <b>判断标准：</b>这个值需要出现在 JSX 里吗？需要 → state；只是记个数、存个 DOM 引用、存上一次的值 → ref。
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================================
    页面
    ========================================================================= */
 
@@ -484,12 +670,87 @@ setTimeout(() => {
         <PageStructureDemo />
       </DemoCard>
 
+      <DemoCard
+        title="Demo 6｜useReducer：dispatch 的引用永远稳定"
+        tag="API"
+        tone="good"
+        desc="useState 的 setter 和 useReducer 的 dispatch 引用都是稳定的，但 dispatch 还有一个额外好处：它让「更新逻辑」从组件里挪了出去。"
+        points={[
+          'dispatch 的引用在组件的整个生命周期内恒定不变，所以它是最理想的「传给 memo 子组件的回调」—— 不需要 useCallback 包一层。',
+          '状态更新逻辑复杂时（多个字段联动、多种动作），useReducer 把 reducer 函数提到组件外，每次渲染不用重新创建闭包。',
+          'reducer 必须是纯函数：同样的 state + action 永远得到同样的结果，这也是它比手写 setState 更可预测的地方。',
+          '注意 reducer 里必须返回新对象（{ ...state }），直接改 state 一样会出问题 —— 这一点和 useState 的不可变原则完全一致。',
+          '对照 Vue：reducer 有点像一个「只处理同步逻辑的 Pinia action」，dispatch 则相当于那个永远指向同一个函数的 store.$dispatch。',
+        ]}
+        code={`// ❌ 用 useState + 内联函数传给 memo 子组件
+function Parent() {
+  const [count, setCount] = useState(0)
+  // 每次渲染都是新函数 → memo 失效，除非包 useCallback
+  return <Child onAdd={() => setCount(c => c + 1)} />
+}
+
+// ✅ 用 useReducer：dispatch 天然稳定，无需 useCallback
+function cartReducer(state, action) {
+  switch (action.type) {
+    case 'add':   return { ...state, count: state.count + 1, total: state.total + action.price }
+    case 'reset': return { count: 0, total: 0 }
+    default:      return state
+  }
+}
+
+function Parent() {
+  const [state, dispatch] = useReducer(cartReducer, { count: 0, total: 0 })
+  // dispatch 引用恒定 → memo(Child) 一定能被挡住
+  return <Child dispatch={dispatch} />
+}`}
+      >
+        <ReducerDemo />
+      </DemoCard>
+
+      <DemoCard
+        title="Demo 7｜useRef：存「不参与渲染」的值"
+        tone="good"
+        desc="有些数据变了，界面完全不需要跟着变。把它们放进 state，就是在白白买一次渲染。"
+        points={[
+          'useRef 的三个典型用途：存 DOM 引用、存"上一次的值"、存不需要渲染的计数器/标志位。',
+          '改 ref.current 不会触发任何渲染，读 ref.current 也不会建立依赖关系 —— 所以它没有"渲染成本"。',
+          '反过来，如果这个值最终要显示在界面上，就必须用 state，否则界面不会更新（这是最容易踩的坑：ref 改了但页面没动）。',
+          '常见场景：埋点计数、滚动位置、拖拽过程中的中间坐标、requestAnimationFrame 的 id、上一次的 props 快照。',
+          '对照 Vue：Vue 的 ref() 是响应式的，改了就触发更新，所以没有直接对应物；更接近的其实是「用 let 声明的普通变量」，但那个在 React 里每次渲染都会重置 —— 这也是 useRef 不可替代的原因。',
+        ]}
+        code={`// ❌ 不需要显示的值放进 state → 每次变化都白买一次渲染
+const [clicks, setClicks] = useState(0)   // 只是埋点计数，界面上根本不显示
+
+// ✅ 放进 ref：改了不渲染，读取也不算依赖
+const clicksRef = useRef(0)
+clicksRef.current += 1
+
+// ✅ 经典用法：存上一次的值（对比 props 变化）
+function usePrevious(value) {
+  const ref = useRef(undefined)
+  useEffect(() => { ref.current = value })
+  return ref.current
+}
+
+// ❌ 陷阱：需要显示的值用了 ref → 界面永远不更新
+const [rendered, setRendered] = useState(0)
+const countRef = useRef(0)
+countRef.current += 1          // 页面上的数字不会变
+// 只能在渲染时同步读取：<span>{countRef.current}</span>
+
+// ✅ 但这样写有例外：渲染期读取 ref 不违反规则，
+//    前提是「这个值在本次渲染期间不会变」`}
+      >
+        <RefVsStateDemo />
+      </DemoCard>
+
       <Panel title="本章小结">
         <ul className="checklist">
           <li>状态下沉 / children 插槽 / 正确的 key —— 这三种结构优化的收益，通常大于到处加 memo。</li>
           <li>派生值永远不要存 state，它是"两个真相来源"的根源。</li>
           <li>React 18+ 已经自动批处理，不用再手动合并 setState；重点应该放在「缩小渲染范围」。</li>
           <li>拆分组件时，顺便想一下：哪些 state 可以继续往下沉？</li>
+          <li>useReducer 的 dispatch 天生稳定，是最适合传给 memo 子组件的回调；useRef 用来装"不需要出现在界面上"的值。</li>
         </ul>
       </Panel>
     </>

@@ -16,6 +16,7 @@ const SplitPage = lazy(() => import('./pages/SplitPage'))
 const ConcurrentPage = lazy(() => import('./pages/ConcurrentPage'))
 const ProfilerPage = lazy(() => import('./pages/ProfilerPage'))
 const ComparePage = lazy(() => import('./pages/ComparePage'))
+const React19Page = lazy(() => import('./pages/React19Page'))
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="concurrent" element={<ConcurrentPage />} />
         <Route path="profiler" element={<ProfilerPage />} />
         <Route path="compare" element={<ComparePage />} />
+        <Route path="react19" element={<React19Page />} />
         <Route path="*" element={<Home />} />
       </Route>
     </Routes>

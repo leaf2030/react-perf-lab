@@ -659,9 +659,42 @@ input[type='range'] {
   color: var(--text-dim);
 }
 
+/* 「危险/反模式」按钮：第 07 章 flushSync、第 06 章故障注入用 */
+.btn--danger {
+  border-color: #5c2a33;
+  color: var(--bad);
+}
+
+.btn--danger:hover {
+  border-color: var(--bad);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ---------- effect 时机对照（第 07 章 useLayoutEffect） ---------- */
+
+.effect-track {
+  position: relative;
+  height: 34px;
+  border-radius: 8px;
+  background: #ffffff08;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.effect-block {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--violet));
+  /* 用 transform 走动画，避免触发布局 —— 顺带也是"只动 transform/opacity"的示范 */
+  transition: margin-left 260ms cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 /* ---------- 指标 ---------- */

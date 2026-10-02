@@ -3,7 +3,8 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react-hooks/exhaustive-deps": "warn"
   },
   "overrides": [
     {
@@ -11,7 +12,8 @@
       "rules": {
         "react/refs": "off",
         "react/purity": "off",
-        "react/set-state-in-effect": "off"
+        "react/set-state-in-effect": "off",
+        "react/no-unstable-nested-components": "off"
       }
     }
   ]

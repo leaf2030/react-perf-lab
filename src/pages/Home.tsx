@@ -19,7 +19,7 @@ const CHAPTERS = [
     to: '/structure',
     index: '03',
     title: '组件结构与状态设计',
-    desc: '状态下沉、key 的正确使用、批量更新、避免冗余 state —— 不写 memo 也能变快',
+    desc: '状态下沉、key 的正确使用、批量更新、避免冗余 state —— 顺带讲清 useReducer 和 useRef 的性能用法',
   },
   {
     to: '/context',
@@ -43,7 +43,7 @@ const CHAPTERS = [
     to: '/concurrent',
     index: '07',
     title: '并发渲染特性',
-    desc: 'useTransition / useDeferredValue，让"卡顿"变成"稍等"，和 debounce 的区别',
+    desc: 'useTransition / useDeferredValue 让「卡顿」变成「稍等」，外加两个决定会不会闪的时机类 API',
   },
   {
     to: '/profiler',
@@ -56,6 +56,12 @@ const CHAPTERS = [
     index: '09',
     title: 'Vue ↔ React 性能对照',
     desc: '给 Vue 团队的心智模型迁移指南：响应式 vs 组件级调度',
+  },
+  {
+    to: '/react19',
+    index: '10',
+    title: 'React 19 性能新特性',
+    desc: 'useOptimistic 感知性能、<Activity>（KeepAlive 的对应物）、React Compiler 对手写 memo 的影响',
   },
 ]
 
@@ -83,13 +89,14 @@ export default function Home() {
         </div>
       </div>
 
-      <Panel title="分享流程建议（约 60 分钟）">
+      <Panel title="分享流程建议（约 75 分钟）">
         <ol className="steps">
           <li>开场 3 分钟：用一个「输入框卡顿」的现场演示建立共鸣 —— 第 01 章。</li>
-          <li>渲染层 20 分钟：memo / useMemo / useCallback / 组件结构，这是 React 性能的主战场。</li>
+          <li>渲染层 25 分钟：memo / useMemo / useCallback / 组件结构，这是 React 性能的主战场。</li>
           <li>数据层 15 分钟：Context 陷阱 + 长列表虚拟化，对应 Vue 里的 provide/inject 与虚拟滚动。</li>
-          <li>加载层 10 分钟：代码分割与并发特性，属于「体感性能」。</li>
-          <li>收尾 10 分钟：Profiler 度量方法论 + Vue ↔ React 对照表 + 落地 checklist。</li>
+          <li>加载与并发 12 分钟：代码分割 + 并发特性，外加 useLayoutEffect / flushSync 两个时机类 API。</li>
+          <li>度量与迁移 10 分钟：Profiler 度量方法论 + Vue ↔ React 对照表 + 落地 checklist。</li>
+          <li>前瞻 10 分钟：React 19 新特性与 React Compiler —— 顺带更正第 09 章关于 KeepAlive 的结论。</li>
         </ol>
       </Panel>
 
