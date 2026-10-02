@@ -1127,6 +1127,312 @@ input[type='range'] {
   margin-top: 16px;
 }
 
+/* ============================================================
+   FiberTreeDiagram —— 首页开场的「渲染流水线 + Fiber 树」示意图
+   ============================================================ */
+
+.ftree {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.ftree__col {
+  min-width: 0;
+}
+
+.ftree__col-head {
+  margin-bottom: 14px;
+}
+
+.ftree__col-kicker {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-mute);
+  margin-bottom: 4px;
+}
+
+.ftree__col-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ---------- 左侧：三步流水线 ---------- */
+
+.ftree__phase-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.ftree__phase {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-container);
+  box-shadow: var(--shadow);
+}
+
+/* 左侧色条区分阶段，跟 antd Tag 的语义色一致 */
+.ftree__phase--primary {
+  border-left: 3px solid var(--primary);
+}
+
+.ftree__phase--warning {
+  border-left: 3px solid var(--warning);
+}
+
+.ftree__phase--success {
+  border-left: 3px solid var(--success);
+}
+
+/* 阶段之间的向下箭头 */
+.ftree__phase-arrow {
+  width: 1px;
+  height: 14px;
+  margin-left: 20px;
+  background: var(--border);
+  position: relative;
+}
+
+.ftree__phase-arrow::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  bottom: 0;
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg) translateY(2px);
+}
+
+.ftree__phase-no {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ftree__phase-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.ftree__phase-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ftree__phase-en {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-mute);
+}
+
+.ftree__phase-desc {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.ftree__phase-spots {
+  margin: 7px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-mute);
+}
+
+.ftree__phase-spots li::marker {
+  color: var(--primary);
+}
+
+/* ---------- 图例 ---------- */
+
+.ftree__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-secondary);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.ftree__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ftree__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.ftree__dot--dirty {
+  background: var(--error-bg);
+  border: 1px solid var(--error);
+}
+
+.ftree__dot--pruned {
+  background: var(--success-bg);
+  border: 1px solid var(--success);
+}
+
+.ftree__dot--plain {
+  background: var(--bg-container);
+  border: 1px solid var(--border);
+}
+
+/* ---------- 右侧：Fiber 树 ---------- */
+
+.ftree__canvas {
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-container);
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+
+.ftree__node {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-container);
+  white-space: nowrap;
+}
+
+.ftree__node-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ftree__node-note {
+  font-size: 10.5px;
+  color: var(--text-mute);
+}
+
+/* App 根节点：主色实底，视觉锚点 */
+.ftree__node--root {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.ftree__node--root .ftree__node-label,
+.ftree__node--root .ftree__node-note {
+  color: #fff;
+}
+
+/* 本次要重新执行的节点 —— 红，跟全站「涨=红」以及 antd error 语义一致 */
+.ftree__node--dirty {
+  border-color: var(--error);
+  background: var(--error-bg);
+}
+
+.ftree__node--dirty .ftree__node-label {
+  color: #cf1322;
+}
+
+/* 被 memo 挡住的节点 —— 绿 */
+.ftree__node--pruned {
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+
+.ftree__node--pruned .ftree__node-label {
+  color: #389e0d;
+}
+
+/* 经典「文件树」式结构：竖向堆叠 + 缩进 + 连接线 */
+.ftree__tree {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ftree__tree--root {
+  gap: 12px;
+}
+
+/* 缩进层：左侧一条竖线代表父到子的连线 */
+.ftree__tree .ftree__tree {
+  margin-left: 15px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+  gap: 8px;
+}
+
+/* 每个节点从竖线引出一段小横线 */
+.ftree__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ftree__item::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 15px;
+  width: 14px;
+  height: 1px;
+  background: var(--border);
+}
+
+.ftree__note {
+  margin-top: 18px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--primary-bg);
+  border: 1px solid var(--primary-border);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+
+.ftree__note b {
+  color: var(--text);
+}
+
+@media (max-width: 1080px) {
+  .ftree {
+    grid-template-columns: 1fr;
+  }
+}
+
 .toc {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { CodeBlock } from '../components/CodeBlock'
+import { FiberTreeDiagram } from '../components/FiberTreeDiagram'
 import { PageHeader, Panel } from '../components/PageHeader'
 
 const CHAPTERS = [
@@ -74,6 +75,10 @@ export default function Home() {
         subtitle="从一个 Vue 工程师的视角出发，把 React 的性能问题拆成「渲染 / 数据 / 加载 / 度量」四条线，每一条线都配一个可以现场跑起来的 Demo。"
         tags={['React 19', 'Vite', 'TypeScript', '面向 Vue 团队']}
       />
+
+      <Panel title="先建立一张图：一次 state 变化，React 到底做了什么">
+        <FiberTreeDiagram />
+      </Panel>
 
       <div className="hero">
         <h1>现场只需要记住三句话</h1>
