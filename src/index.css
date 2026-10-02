@@ -1,28 +1,64 @@
 /* ============================================================
    React 性能优化实战 · 演示站点样式
-   纯手写 CSS，不引第三方 UI 库，避免给演示增加噪音
+   视觉语言：Ant Design v5 设计体系
+   - 严格采用 antd v5 默认 token（颜色 / 字号 / 圆角 / 阴影 / 控件高度）
+   - 主色 #1677ff，文字三级 rgba(0,0,0,.88/.65/.45)，边框 #d9d9d9
+   - 布局底 #f5f5f5，容器 #fff，圆角 6px，控件高 32px
+   - 不引入 antd 依赖，纯 CSS 复刻其设计语言
    ============================================================ */
 
 :root {
-  --bg: #0b0e14;
-  --bg-soft: #111725;
-  --panel: #151b29;
-  --panel-2: #1b2334;
-  --border: #263044;
-  --border-strong: #33405a;
-  --text: #e6ecf7;
-  --text-dim: #97a3ba;
-  --text-mute: #6b7891;
-  --accent: #61dafb;
-  --accent-ink: #04202b;
-  --good: #3ddc97;
-  --bad: #ff6b81;
-  --warn: #ffc857;
-  --violet: #a78bfa;
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* ---- Seed Token ---- */
+  --primary: #1677ff;
+  --success: #52c41a;
+  --error: #ff4d4f;
+  --warning: #faad14;
+  --info: #1677ff;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 8px;
+  --font-size: 14px;
+  --control-height: 32px;
+
+  /* ---- 文字色阶 ---- */
+  --text: rgba(0, 0, 0, 0.88);
+  --text-dim: rgba(0, 0, 0, 0.65);
+  --text-mute: rgba(0, 0, 0, 0.45);
+  --text-quaternary: rgba(0, 0, 0, 0.25);
+
+  /* ---- 背景 / 边框 / 填充 ---- */
+  --bg-layout: #f5f5f5;
+  --bg-container: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-spotlight: rgba(0, 0, 0, 0.85);
+  --border: #d9d9d9;
+  --border-secondary: #f0f0f0;
+  --fill-secondary: rgba(0, 0, 0, 0.06);
+  --fill-tertiary: rgba(0, 0, 0, 0.04);
+  --fill-quaternary: rgba(0, 0, 0, 0.02);
+
+  /* ---- 主色的浅色衍生（antd 用 colorPrimaryBg / Border / Hover） ---- */
+  --primary-bg: #e6f4ff;
+  --primary-bg-hover: #bae0ff;
+  --primary-border: #91caff;
+  --primary-hover: #4096ff;
+  --primary-active: #0958d9;
+  --success-bg: #f6ffed;
+  --success-border: #b7eb8f;
+  --error-bg: #fff2f0;
+  --error-border: #ffccc7;
+  --warning-bg: #fffbe6;
+  --warning-border: #ffe58f;
+
+  /* ---- 阴影 ---- */
+  --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02),
+    0 2px 4px 0 rgba(0, 0, 0, 0.02);
+  --shadow-secondary: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-  --sans: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 }
 
 * {
@@ -37,32 +73,38 @@ body,
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--bg-layout);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: var(--font-size);
+  line-height: 1.5714;
   -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--accent);
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--primary-hover);
 }
 
 /* ---------- 整体骨架 ---------- */
 
 .app {
   display: grid;
-  grid-template-columns: 264px 1fr;
+  grid-template-columns: 248px 1fr;
   height: 100vh;
   overflow: hidden;
 }
 
+/* 侧栏 = antd Layout.Sider 的浅色形态 */
 .app__side {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border);
-  background: linear-gradient(180deg, #0e1421, #0a0e16);
+  border-right: 1px solid var(--border-secondary);
+  background: var(--bg-container);
   overflow-y: auto;
 }
 
@@ -70,77 +112,87 @@ a {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 18px 16px 14px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
+/* antd 的 logo 方块：主色填充 + 6px 圆角 */
 .brand__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  background: var(--primary);
   flex: none;
+  position: relative;
+}
+
+.brand__dot::after {
+  content: '';
+  position: absolute;
+  inset: 9px 7px;
+  border-radius: 50%;
+  background: #fff;
 }
 
 .brand strong {
   display: block;
   font-size: 14px;
-  letter-spacing: 0.2px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .brand small {
   display: block;
   color: var(--text-mute);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .nav {
-  padding: 6px 10px 16px;
+  padding: 8px;
   flex: 1;
 }
 
 .nav__group + .nav__group {
-  margin-top: 14px;
+  margin-top: 8px;
 }
 
 .nav__group-title {
   display: block;
-  padding: 0 8px 6px;
-  font-size: 11px;
-  letter-spacing: 0.8px;
+  padding: 8px 12px 4px;
+  font-size: 12px;
   color: var(--text-mute);
-  text-transform: uppercase;
 }
 
+/* 对应 antd Menu 的 item：选中态为浅主色底 + 主色文字 */
 .nav__link {
   display: block;
-  padding: 7px 10px;
+  padding: 0 12px;
+  height: 36px;
+  line-height: 36px;
   margin-bottom: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   color: var(--text-dim);
-  text-decoration: none;
-  font-size: 13.5px;
-  border-left: 2px solid transparent;
-  transition: background 120ms ease, color 120ms ease;
+  font-size: 14px;
+  transition: background 200ms cubic-bezier(0.645, 0.045, 0.355, 1),
+    color 200ms cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 .nav__link:hover {
-  background: #ffffff0a;
+  background: var(--fill-tertiary);
   color: var(--text);
 }
 
 .nav__link.is-active {
-  background: #61dafb1a;
-  border-left-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-weight: 500;
 }
 
 .side-foot {
-  padding: 12px 16px 16px;
-  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-secondary);
   color: var(--text-mute);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .app__content {
@@ -149,22 +201,23 @@ a {
   min-width: 0;
 }
 
+/* 顶栏 = antd Layout.Header 的浅色形态 */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
-  padding: 10px 26px;
-  border-bottom: 1px solid var(--border);
-  background: #0d121c;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border-secondary);
+  background: var(--bg-container);
 }
 
 .topbar__slider {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--text-dim);
 }
 
@@ -175,34 +228,38 @@ a {
 }
 
 .topbar__slider b {
-  color: var(--accent);
+  color: var(--primary);
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  min-width: 48px;
+  min-width: 52px;
 }
 
 .topbar__hint {
   color: var(--text-mute);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .topbar__actions {
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .switch {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   color: var(--text-dim);
   cursor: pointer;
   user-select: none;
+  font-size: 14px;
 }
 
 .switch input {
-  accent-color: var(--accent);
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
 }
 
 .app__main {
@@ -211,8 +268,8 @@ a {
 }
 
 .page {
-  max-width: 1080px;
-  padding: 26px 32px 96px;
+  max-width: 1120px;
+  padding: 24px;
 }
 
 .route-fallback {
@@ -230,13 +287,13 @@ a {
 }
 
 .spinner {
-  width: 26px;
-  height: 26px;
-  margin-bottom: 10px;
-  border: 3px solid #ffffff1f;
-  border-top-color: var(--accent);
+  width: 24px;
+  height: 24px;
+  margin-bottom: 12px;
+  border: 3px solid var(--primary-bg-hover);
+  border-top-color: var(--primary);
   border-radius: 50%;
-  animation: spin 700ms linear infinite;
+  animation: spin 900ms linear infinite;
 }
 
 @keyframes spin {
@@ -248,7 +305,7 @@ a {
 /* ---------- 页头 ---------- */
 
 .page-head {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .page-head__row {
@@ -257,29 +314,35 @@ a {
   gap: 12px;
 }
 
+/* antd 的统计数值风格序号 */
 .page-head__index {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: #61dafb1f;
-  color: var(--accent);
-  font-weight: 700;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-family: var(--mono);
+  font-weight: 600;
   font-size: 14px;
 }
 
 .page-head__title {
   margin: 0;
   font-size: 26px;
-  letter-spacing: 0.3px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
 }
 
 .page-head__subtitle {
   margin: 8px 0 0;
   color: var(--text-dim);
   max-width: 76ch;
+  font-size: 14px;
 }
 
 .page-head__tags {
@@ -289,43 +352,55 @@ a {
   margin-top: 12px;
 }
 
+/* antd Tag 默认形态 */
 .tag {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  background: #ffffff12;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 20px;
+  background: var(--fill-tertiary);
   color: var(--text-dim);
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   white-space: nowrap;
 }
 
+/* antd Tag color="blue" */
 .tag--soft {
-  background: #61dafb14;
-  color: #9fe6fb;
-  border-color: #61dafb33;
+  background: var(--primary-bg);
+  color: var(--primary);
+  border-color: var(--primary-border);
 }
 
-/* ---------- 卡片 / 面板 ---------- */
+/* ---------- 卡片 / 面板（对应 antd Card） ---------- */
 
 .demo,
 .panel,
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px;
-  margin-bottom: 18px;
+  background: var(--bg-container);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
 }
 
+/* good / bad 用 antd 状态色描边 + 左侧色条（对应 Card 的 bordered + 语义色） */
 .demo--bad {
-  border-color: #ff6b8140;
-  background: linear-gradient(180deg, #ff6b810d, transparent 90px), var(--panel);
+  border-color: var(--error-border);
+}
+
+.demo--bad::before,
+.demo--good::before {
+  content: '';
+  display: block;
+  height: 0;
 }
 
 .demo--good {
-  border-color: #3ddc9740;
-  background: linear-gradient(180deg, #3ddc970d, transparent 90px), var(--panel);
+  border-color: var(--success-border);
 }
 
 .demo__head {
@@ -337,41 +412,43 @@ a {
 
 .demo__title {
   margin: 0;
-  font-size: 16.5px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .demo__desc {
   margin: 8px 0 0;
   color: var(--text-dim);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .demo__body {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px dashed var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-secondary);
 }
 
+/* 讲解要点 = antd 的 Alert info 形态 */
 .demo__points {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: #61dafb0d;
-  border: 1px solid #61dafb26;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--primary-bg);
+  border: 1px solid var(--primary-border);
 }
 
 .demo__points-title {
   display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
   margin-bottom: 6px;
 }
 
 .demo__points ul {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 20px;
   color: var(--text-dim);
   font-size: 13px;
 }
@@ -381,65 +458,78 @@ a {
 }
 
 .panel__title {
-  margin: 0 0 10px;
-  font-size: 15px;
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .panel--good {
-  border-color: #3ddc9740;
+  border-color: var(--success-border);
+  background: var(--success-bg);
 }
 
 .panel--bad {
-  border-color: #ff6b8140;
+  border-color: var(--error-border);
+  background: var(--error-bg);
+}
+
+/* 面板内的子卡片要保持白底，避免嵌套时糊成一片 */
+.panel--good .panel,
+.panel--bad .panel,
+.panel--good .demo,
+.panel--bad .demo {
+  background: var(--bg-container);
 }
 
 /* ---------- 代码块 ---------- */
 
 .code {
-  margin-top: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  margin-top: 16px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background: #0a0e16;
+  background: var(--fill-quaternary);
 }
 
 .code--good {
-  border-color: #3ddc9740;
+  border-color: var(--success-border);
 }
 
 .code--bad {
-  border-color: #ff6b8140;
+  border-color: var(--error-border);
 }
 
 .code__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 12px;
-  background: #ffffff08;
-  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-secondary);
+  background: var(--fill-tertiary);
 }
 
 .code__title {
-  font-size: 11.5px;
-  letter-spacing: 0.6px;
+  font-size: 12px;
   color: var(--text-mute);
-  text-transform: uppercase;
 }
 
 .code__copy {
-  background: transparent;
-  border: 1px solid var(--border-strong);
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-container);
+  border: 1px solid var(--border);
   color: var(--text-dim);
-  font-size: 11.5px;
-  border-radius: 6px;
-  padding: 2px 9px;
+  font-size: 12px;
   cursor: pointer;
+  font-family: var(--sans);
+  transition: all 200ms cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 .code__copy:hover {
-  color: var(--text);
-  border-color: var(--accent);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 .code__pre {
@@ -447,21 +537,23 @@ a {
   padding: 14px 16px;
   overflow-x: auto;
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: #cfe3ff;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
   tab-size: 2;
 }
 
 /* ---------- 渲染次数徽章 ---------- */
 
+/* 对应 antd Badge / Tag 的等宽计数形态 */
 .rbadge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: #ffffff0f;
+  padding: 0 8px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-container);
   border: 1px solid var(--border);
   font-size: 12px;
   font-family: var(--mono);
@@ -470,56 +562,59 @@ a {
 }
 
 .rbadge__name {
-  color: #cfe3ff;
-  font-weight: 600;
+  color: var(--text);
+  font-weight: 500;
 }
 
+/* 计数变化时闪主色底，对应 antd Badge 的强调 */
 .rbadge__count {
   display: inline-block;
-  padding: 0 5px;
-  border-radius: 5px;
-  color: var(--warn);
-  font-weight: 700;
-  animation: flash 620ms ease-out;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  color: #d48806;
+  font-weight: 600;
+  animation: flash 620ms cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 .rbadge__note {
   color: var(--text-mute);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .rbadge--cool .rbadge__count {
-  color: var(--good);
+  background: var(--success-bg);
+  color: #389e0d;
 }
 
 @keyframes flash {
   0% {
-    background: var(--accent);
-    color: var(--accent-ink);
-    box-shadow: 0 0 12px var(--accent);
+    background: var(--primary);
+    color: #fff;
   }
   100% {
-    background: transparent;
-    box-shadow: none;
+    background: var(--warning-bg);
+    color: #d48806;
   }
 }
 
 /* ---------- 昂贵 / 廉价组件容器 ---------- */
 
+/* 贵 = 错误色虚线框（antd 的 error 状态）；便宜 = 成功色 */
 .heavy {
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: #ff6b810f;
-  border: 1px dashed #ff6b8155;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: var(--error-bg);
+  border: 1px dashed var(--error);
 }
 
 .heavy--light {
-  background: #3ddc970f;
-  border-color: #3ddc9755;
+  background: var(--success-bg);
+  border-color: var(--success);
 }
 
 .heavy__body {
@@ -528,32 +623,39 @@ a {
   font-size: 13px;
 }
 
-/* ---------- 分段控件 ---------- */
+/* ---------- 分段控件（对应 antd Segmented） ---------- */
 
 .segmented {
   display: inline-flex;
-  padding: 3px;
-  gap: 3px;
-  background: #ffffff0d;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  padding: 2px;
+  background: var(--fill-tertiary);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-secondary);
 }
 
 .segmented__btn {
   border: 0;
   background: transparent;
   color: var(--text-dim);
-  font-size: 12.5px;
-  padding: 4px 14px;
-  border-radius: 999px;
+  font-size: 14px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-family: inherit;
+  transition: all 200ms cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
+.segmented__btn:hover {
+  color: var(--text);
+}
+
+/* antd Segmented 选中态 = 白底 + 阴影 */
 .segmented__btn.is-active {
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
+  background: var(--bg-container);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-weight: 500;
 }
 
 /* ---------- 表单 / 布局小工具 ---------- */
@@ -561,7 +663,7 @@ a {
 .row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -578,7 +680,7 @@ a {
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .grid-3 {
@@ -593,84 +695,139 @@ a {
 
 .hint {
   color: var(--text-mute);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--text-dim);
 }
 
+/* antd Input 规范：32px 高、6px 圆角、hover/active 主色边框 + 4px 光圈 */
 input[type='text'],
 input[type='search'],
 input[type='number'],
 select,
 textarea {
-  background: #0d121c;
-  border: 1px solid var(--border-strong);
+  height: var(--control-height);
+  padding: 4px 11px;
+  background: var(--bg-container);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   color: var(--text);
-  border-radius: var(--radius-sm);
-  padding: 7px 10px;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   outline: none;
+  transition: all 200ms cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+input[type='text']::placeholder,
+input[type='search']::placeholder,
+textarea::placeholder {
+  color: var(--text-quaternary);
+}
+
+input[type='text']:hover,
+input[type='search']:hover,
+input[type='number']:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--primary-hover);
 }
 
 input[type='text']:focus,
 input[type='search']:focus,
+input[type='number']:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px #61dafb22;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
 }
 
 input[type='range'] {
-  accent-color: var(--accent);
+  accent-color: var(--primary);
 }
 
+/* antd Button 规范 */
 .btn {
-  border: 1px solid var(--border-strong);
-  background: var(--panel-2);
+  height: var(--control-height);
+  padding: 4px 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-container);
   color: var(--text);
-  padding: 7px 14px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
-  transition: border-color 120ms ease, background 120ms ease;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.645, 0.045, 0.355, 1);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02);
 }
 
 .btn:hover {
-  border-color: var(--accent);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
+.btn:active {
+  color: var(--primary-active);
+  border-color: var(--primary-active);
+}
+
+/* Button type="primary" */
 .btn--primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1);
 }
 
+.btn--primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: #fff;
+}
+
+.btn--primary:active {
+  background: var(--primary-active);
+  border-color: var(--primary-active);
+  color: #fff;
+}
+
+/* Button type="text" */
 .btn--ghost {
   background: transparent;
+  border-color: transparent;
+  box-shadow: none;
   color: var(--text-dim);
 }
 
-/* 「危险/反模式」按钮：第 07 章 flushSync、第 06 章故障注入用 */
+.btn--ghost:hover {
+  background: var(--fill-tertiary);
+  border-color: transparent;
+  color: var(--text);
+}
+
+/* Button danger */
 .btn--danger {
-  border-color: #5c2a33;
-  color: var(--bad);
+  color: var(--error);
+  border-color: var(--error);
+  background: var(--bg-container);
 }
 
 .btn--danger:hover {
-  border-color: var(--bad);
+  color: #ff7875;
+  border-color: #ff7875;
 }
 
-.btn:disabled {
-  opacity: 0.5;
+.btn:disabled,
+.btn:disabled:hover {
+  color: rgba(0, 0, 0, 0.25);
+  border-color: var(--border);
+  background: rgba(0, 0, 0, 0.04);
+  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -679,9 +836,9 @@ input[type='range'] {
 .effect-track {
   position: relative;
   height: 34px;
-  border-radius: 8px;
-  background: #ffffff08;
-  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--fill-tertiary);
+  border: 1px solid var(--border-secondary);
   overflow: hidden;
 }
 
@@ -691,118 +848,147 @@ input[type='range'] {
   left: 5px;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent), var(--violet));
+  border-radius: var(--radius-sm);
+  background: var(--primary);
   /* 用 transform 走动画，避免触发布局 —— 顺带也是"只动 transform/opacity"的示范 */
-  transition: margin-left 260ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition: margin-left 300ms cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
-/* ---------- 指标 ---------- */
+/* ---------- 指标（对应 antd Statistic） ---------- */
 
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .stat {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: #ffffff08;
-  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--fill-quaternary);
+  border: 1px solid var(--border-secondary);
 }
 
 .stat__label {
   display: block;
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text-mute);
 }
 
 .stat__value {
   display: block;
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
 .stat--good .stat__value {
-  color: var(--good);
+  color: #389e0d;
 }
 
 .stat--bad .stat__value {
-  color: var(--bad);
+  color: var(--error);
 }
 
 .stat--warn .stat__value {
-  color: var(--warn);
+  color: #d48806;
 }
 
-/* ---------- 表格 ---------- */
+/* ---------- 表格（对应 antd Table） ---------- */
 
 .table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .table th,
 .table td {
   text-align: left;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-secondary);
   vertical-align: top;
 }
 
 .table th {
-  color: var(--text-mute);
-  font-size: 11.5px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  background: #ffffff06;
+  background: #fafafa;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.table tbody tr:hover {
-  background: #ffffff06;
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* antd Table 的行 hover */
+.table tbody tr:hover > td {
+  background: #fafafa;
 }
 
 .table code {
   font-family: var(--mono);
-  font-size: 12px;
-  color: #ffd479;
+  font-size: 13px;
+  background: var(--fill-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0 5px;
+  color: var(--primary);
 }
 
-/* ---------- 条形图（Profiler 页用） ---------- */
+/* antd 的行内 code（正文里出现的） */
+.hint code,
+.demo__points code,
+.checklist code,
+.panel code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--fill-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0 5px;
+  color: var(--primary);
+}
+
+/* ---------- 条形图（Profiler 页用，对应 antd Progress） ---------- */
 
 .bars {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .bar-row {
   display: grid;
   grid-template-columns: 170px 1fr 84px;
   align-items: center;
-  gap: 10px;
-  font-size: 12.5px;
+  gap: 12px;
+  font-size: 13px;
 }
 
 .bar-track {
-  height: 12px;
-  background: #ffffff0f;
-  border-radius: 999px;
+  height: 8px;
+  background: var(--fill-secondary);
+  border-radius: 100px;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--violet));
-  transition: width 200ms ease;
+  background: var(--primary);
+  border-radius: 100px;
+  transition: width 300ms cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 .bar-fill--bad {
-  background: linear-gradient(90deg, var(--bad), var(--warn));
+  background: var(--error);
 }
 
 .bar-val {
@@ -817,15 +1003,15 @@ input[type='range'] {
 .vlist-wrap {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .vlist {
   height: 320px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: #0a0e16;
+  border-radius: var(--radius-lg);
+  background: var(--bg-container);
   position: relative;
   contain: content;
 }
@@ -844,8 +1030,8 @@ input[type='range'] {
   justify-content: space-between;
   gap: 10px;
   padding: 0 12px;
-  font-size: 12.5px;
-  border-bottom: 1px solid #ffffff0a;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-secondary);
   color: var(--text-dim);
   font-family: var(--mono);
 }
@@ -857,70 +1043,81 @@ input[type='range'] {
   justify-content: space-between;
   gap: 10px;
   padding: 0 12px;
-  border-bottom: 1px solid #ffffff0a;
-  font-size: 12.5px;
+  border-bottom: 1px solid var(--border-secondary);
+  font-size: 13px;
   color: var(--text-dim);
   font-family: var(--mono);
 }
 
 .nrow b,
 .vrow b {
-  color: #cfe3ff;
+  color: var(--text);
   font-weight: 500;
 }
 
 .vrow__price {
-  color: var(--good);
+  color: #389e0d;
 }
 
 .naive-list {
   height: 320px;
   overflow-y: auto;
-  border: 1px solid #ff6b8140;
-  border-radius: var(--radius-sm);
-  background: #0a0e16;
+  border: 1px solid var(--error);
+  border-radius: var(--radius-lg);
+  background: var(--bg-container);
   contain: content;
 }
 
-/* ---------- 加载骨架 ---------- */
+/* ---------- 加载骨架（对应 antd Skeleton） ---------- */
 
 .skeleton {
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #ffffff10, #ffffff22, #ffffff10);
-  background-size: 200% 100%;
-  animation: shimmer 1.2s linear infinite;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 25%,
+    rgba(0, 0, 0, 0.15) 37%,
+    rgba(0, 0, 0, 0.06) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
 }
 
 @keyframes shimmer {
-  to {
-    background-position: -200% 0;
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
   }
 }
 
 /* ---------- 首页 ---------- */
 
+/* hero = antd 的 Banner 风格：浅主色底 + 主色描边 + 大圆角 */
 .hero {
   position: relative;
-  padding: 34px 30px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: radial-gradient(120% 140% at 0% 0%, #61dafb26, transparent 55%),
-    radial-gradient(120% 140% at 100% 0%, #a78bfa1f, transparent 55%), var(--panel);
-  margin-bottom: 22px;
+  padding: 32px 36px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--primary-border);
+  background: linear-gradient(135deg, var(--primary-bg) 0%, #f0f8ff 100%);
+  margin-bottom: 20px;
   overflow: hidden;
 }
 
 .hero h1 {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   font-size: 30px;
-  line-height: 1.25;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
 }
 
 .hero p {
   margin: 0;
   color: var(--text-dim);
   max-width: 70ch;
+  font-size: 14px;
 }
 
 .hero__badges {
@@ -933,70 +1130,78 @@ input[type='range'] {
 .toc {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
+/* 对应 antd Card hoverable */
 .toc__item {
   display: block;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--panel);
-  text-decoration: none;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-container);
   color: inherit;
-  transition: transform 140ms ease, border-color 140ms ease;
+  box-shadow: var(--shadow);
+  transition: all 200ms cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 .toc__item:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-secondary);
   transform: translateY(-2px);
-  border-color: var(--accent);
 }
 
 .toc__index {
   font-family: var(--mono);
-  color: var(--accent);
-  font-size: 12px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .toc__title {
   display: block;
-  margin: 4px 0 4px;
-  font-size: 15px;
+  margin: 4px 0;
+  font-size: 16px;
   font-weight: 600;
+  color: var(--text);
 }
 
 .toc__desc {
   display: block;
   color: var(--text-mute);
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.5714;
 }
 
+/* 对应 antd 的键盘按键样式 */
 .kbd {
   display: inline-block;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: #ffffff12;
-  border: 1px solid var(--border-strong);
+  padding: 0 6px;
+  height: 22px;
+  line-height: 20px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-container);
+  border: 1px solid var(--border);
   border-bottom-width: 2px;
   font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--text);
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
+/* 对应 antd Steps */
 .steps {
   counter-reset: step;
   margin: 0;
   padding: 0;
   list-style: none;
   color: var(--text-dim);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .steps li {
   counter-increment: step;
   position: relative;
-  padding-left: 30px;
+  padding-left: 32px;
   margin-bottom: 8px;
 }
 
@@ -1005,13 +1210,14 @@ input[type='range'] {
   position: absolute;
   left: 0;
   top: 1px;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #61dafb1f;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
+  background: var(--primary-bg);
+  border: 1px solid var(--primary-border);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1019,13 +1225,17 @@ input[type='range'] {
 
 .checklist {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 20px;
   color: var(--text-dim);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .checklist li + li {
   margin-top: 6px;
+}
+
+.checklist li::marker {
+  color: var(--primary);
 }
 
 @media (max-width: 900px) {
@@ -1038,7 +1248,7 @@ input[type='range'] {
   }
 
   .page {
-    padding: 20px 16px 80px;
+    padding: 16px;
   }
 
   .bar-row {
