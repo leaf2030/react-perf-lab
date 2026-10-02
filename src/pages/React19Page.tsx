@@ -616,7 +616,7 @@ function open(id) {
       <DemoCard
         title="Demo 5｜React Compiler：以后还要手写 useMemo 吗？"
         tone="default"
-        desc="这一节没有「对比 Demo」，而是一个必须说清的结论 —— 它会影响听众对前九章的理解。"
+        desc="这一节没有「对比 Demo」，而是一个必须说清的结论，关联前面几章。"
         points={[
           'React Compiler 在构建时自动分析组件，自动插入缓存 —— 效果等价于帮你写好 useMemo / useCallback / memo。',
           '所以「到处手动加 memo」的价值会下降；但前九章的东西不会白讲，因为编译器不解决结构问题。',
@@ -713,8 +713,8 @@ function Filter({ items, keyword }) {
           </tbody>
         </table>
         <p className="hint" style={{ marginTop: 12, marginBottom: 0 }}>
-          <b>讲这一章的分寸：</b>新 API 很容易讲成"炫技"，一定要落到「它替代了我们以前怎么做、成本降低了多少」。
-          另外务必标清版本 —— 讲 <code>Activity</code> 时如果现场同事的 React 还是 18，他们试了会报错。
+          <b>讲这一章的分寸：</b>新 API 容易讲成"炫技"，落到「它替代了什么、成本降低了多少」更扎实。
+          另外要标清版本 —— 讲 <code>Activity</code> 时如果现场同事的 React 还是 18，他们试了会报错。
         </p>
       </Panel>
 

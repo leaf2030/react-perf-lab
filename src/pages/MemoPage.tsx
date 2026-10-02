@@ -370,7 +370,7 @@ export default function MemoPage() {
         tags={['useMemo', 'useCallback', '引用相等', '闭包陷阱']}
       />
 
-      <Panel title="三句话记住它们的定位">
+      <Panel title="三句话讲清定位">
         <ul className="checklist">
           <li>
             <code>useMemo(fn, deps)</code>：缓存 <b>计算结果</b>，依赖没变就复用。适合「计算很贵」或「需要稳定引用」。
@@ -380,7 +380,7 @@ export default function MemoPage() {
             <code>React.memo</code> 的子组件、或作为其他 Hook 的依赖。
           </li>
           <li>
-            两者都<b>不是语义保证</b>：React 在极端情况下有权丢弃缓存（比如低优先级渲染被中断）。所以千万别把「副作用」放进 useMemo。
+            两者都<b>不是语义保证</b>：React 在极端情况下有权丢弃缓存（比如低优先级渲染被中断）。副作用不能放进 useMemo。
           </li>
         </ul>
         <p className="hint mt-12">

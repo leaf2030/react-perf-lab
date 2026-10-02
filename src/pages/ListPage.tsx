@@ -253,11 +253,11 @@ export default function ListPage() {
             <b>内存成本</b>：几万个 DOM 节点会一直占着内存，滚动时浏览器的重绘压力也更大。
           </li>
           <li>
-            <b>对比</b>：Vue 里大家会用 vue-virtual-scroller，React 里对应的是 react-window / react-virtualized / TanStack Virtual，
+            <b>对比</b>：Vue 里通常用 vue-virtual-scroller，React 里对应的是 react-window / react-virtualized / TanStack Virtual，
             原理完全一样 —— 只渲染可视区。
           </li>
           <li>
-            自己手写一遍能理解所有细节（下面 50 行代码就够了），但生产环境请直接用成熟库，它们把动态行高、滚动容器、
+            自己手写一遍能理解细节，生产环境直接用成熟库，它们把动态行高、滚动容器、
             ResizeObserver 这些细节都处理好了。
           </li>
         </ul>
@@ -269,7 +269,7 @@ export default function ListPage() {
         tone="bad"
         desc="点不同的数据量，看两个指标：真实 DOM 节点数、渲染+提交耗时。请谨慎点击 50,000 条。"
         points={[
-          '注意看：DOM 节点数和数据量是 1:1 的，耗时也线性增长。',
+          'DOM 节点数和数据量是 1:1 的，耗时也线性增长。',
           '这一类卡顿是「一次性的」，但滚动时的掉帧是「持续的」—— 用户感受更差。',
           '有些人会先想到用 memo 优化行组件，但行组件的 props 其实没变，memo 帮不上忙：瓶颈在节点数量。',
           '分页也是一种解法：把"一次性渲染 5 万条"变成"每页 50 条"。虚拟化是"要保留连续滚动体验"时的方案。',

@@ -499,7 +499,7 @@ useLayoutEffect(() => {
 // ✅ 常规用途一律用 useEffect（不阻塞绘制）
 useEffect(() => {
   const sub = store.subscribe(handler)
-  return () => sub.unsubscribe()   // 别忘了清理
+  return () => sub.unsubscribe()   // 清理订阅
 }, [store])`}
       >
         <LayoutEffectDemo />

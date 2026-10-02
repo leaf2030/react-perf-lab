@@ -6,7 +6,7 @@ type Props = {
   tag?: string
   /** 一句话说明这个 demo 要证明什么 */
   desc?: ReactNode
-  /** 讲解要点，现场照着说就行 */
+  /** 讲解要点 */
   points?: string[]
   code?: string
   codeTone?: 'default' | 'good' | 'bad'

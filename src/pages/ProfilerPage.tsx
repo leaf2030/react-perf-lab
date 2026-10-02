@@ -318,7 +318,7 @@ const onRender: ProfilerOnRenderCallback = (id, phase, actualDuration, baseDurat
             它会让包体积和运行开销都变大。
           </li>
           <li>更轻量的做法：只采集 Web Vitals（LCP / INP / CLS）+ 关键交互耗时，上报到监控平台。</li>
-          <li>别忘了先定义一个「基线」：优化前是多少、目标是多少，否则数字没有意义。</li>
+          <li>先定义一个「基线」：优化前是多少、目标是多少，数字才有意义。</li>
         </ul>
         <p className="hint">
           顺手推荐一个小工具：<code>@welldone-software/why-did-you-render</code>，它会在控制台直接打印

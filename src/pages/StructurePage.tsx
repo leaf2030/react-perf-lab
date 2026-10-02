@@ -607,7 +607,7 @@ const row = { ...input, id: crypto.randomUUID() }`}
           '能由已有 state / props 推导出来的值，一律不要存 state —— 这是 React 官方文档里的头号建议。',
           '冗余 state 的代价：多一次同步逻辑、容易出现不一致，而且每次都要多维护一个 setState。',
           '如果派生计算真的很贵，用 useMemo 而不是 useState 来缓存它（参考第 02 章）。',
-          '判断口诀：这个值变了，是不是应该"顺便"让另一个 state 也变？如果是，那它大概率不该是 state。',
+          '判断标准：这个值变了，是不是还要"顺便"同步另一个 state？如果是，它大概率不该是 state。',
         ]}
         code={`// ❌ 两个 state，需要手动保持同步
 const [items, setItems] = useState(list)

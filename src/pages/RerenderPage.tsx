@@ -310,7 +310,7 @@ export default function RerenderPage() {
         points={[
           'React 没有像 Vue 那样的细粒度依赖追踪，父组件一渲染，默认会递归渲染所有子组件。',
           '卡顿的本质：输入 → setState → 重渲染一大棵树 → 浏览器主线程被占满 → 输入框掉帧。',
-          '先用 React DevTools 的 Highlight updates 看到这个现象，再讲优化，听众才有代入感。',
+          '先用 React DevTools 的 Highlight updates 展示这个现象，再进入优化。',
         ]}
         code={`function Parent() {
   const [text, setText] = useState('')
@@ -431,7 +431,7 @@ function Shell({ children }: { children: ReactNode }) {
         points={[
           'key 变了 → 卸载 + 重新挂载：DOM 重建、useState 重置、useEffect 重新执行。',
           'key 不变 → 复用：state 保留，只更新变化的 props。',
-          '两个用法：① 用它重置组件状态（本项目顶栏的「重置计数」）；② 列表里千万别用 index 当 key（下一章会演示坑）。',
+          '两个用法：① 用它重置组件状态（本项目顶栏的「重置计数」）；② 列表会增删改排序时，不要用 index 当 key（下一章演示）。',
         ]}
         code={`// 用 key 强制重置：不想手写 reset 逻辑时非常好用
 <ProfileForm key={userId} userId={userId} />

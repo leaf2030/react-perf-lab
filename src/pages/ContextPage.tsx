@@ -296,7 +296,7 @@ export default function ContextPage() {
         tags={['Context', 'useSyncExternalStore', 'selector', '状态管理']}
       />
 
-      <Panel title="Context 的渲染规则（记住这一条就够了）">
+      <Panel title="Context 的渲染规则（核心一条）">
         <ul className="checklist">
           <li>
             <b>Provider 的 value 变化（Object.is 比较）→ 所有消费者重渲染</b>，哪怕组件只用到了其中的一个字段。
@@ -417,7 +417,7 @@ const { count } = useStoreSelector(store, (s) => ({ count: s.count }))`}
       </DemoCard>
 
       <DemoCard
-        title="Demo 4｜别忽略：value 一定要 memo"
+        title="Demo 4｜value 需要 memo"
         tag="最常见的低级错误"
         tone="bad"
         desc="两个 Wrapper 内部都有会变的 state，唯一的区别是传给 Provider 的 value 有没有用 useMemo 固定。"

@@ -148,7 +148,7 @@ export default function ComparePage() {
         </table>
         <p className="hint mt-12">
           一句话总结：<b>Vue 的性能主要靠框架，React 的性能主要靠开发者对渲染模型的理解。</b>
-          好消息是，理解之后你会发现 React 的优化是「可预测」的 —— 你能精确说出一次点击会让哪些组件重渲染。
+          React 的优化是可预测的 —— 一次点击会让哪些组件重渲染，可以精确推断。
         </p>
       </Panel>
 
@@ -379,7 +379,7 @@ setItems(items.map((i) => (i.id === id ? { ...i, done: true } : i)))
             <b>把不该放进 state 的东西放进去</b>：能算出来的值直接算，不要存成第二份 state。
           </li>
           <li>
-            <b>依赖数组漏写</b>：useEffect / useMemo 读到旧值，且不会报错。ESLint 的 exhaustive-deps 规则一定要开。
+            <b>依赖数组漏写</b>：useEffect / useMemo 读到旧值，且不会报错。ESLint 的 exhaustive-deps 规则需开启。
           </li>
           <li>
             <b>到处加 memo</b>：Vue 里不需要考虑「父组件会不会带累我」，React 里 memo 要配稳定 props 才有用，滥用反而更慢。

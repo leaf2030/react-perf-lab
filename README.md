@@ -18,7 +18,7 @@ npm run preview    # 预览生产构建（演示真实性能请用这个）
 npm run lint       # oxlint
 ```
 
-## 演示前准备（建议照着做）
+## 演示前准备
 
 1. 安装 **React Developer Tools** 浏览器扩展。
 2. 打开 **Profiler** 面板，勾选 `Highlight updates when components render` —— 重渲染的组件会出现彩色描边。

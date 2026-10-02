@@ -81,7 +81,7 @@ export default function Home() {
       </Panel>
 
       <div className="hero">
-        <h1>现场只需要记住三句话</h1>
+        <h1>开场三句话</h1>
         <p>
           1. React 的性能问题，90% 是「不必要的重渲染」；<br />
           2. 优化前先度量，React DevTools 的 Profiler 是唯一权威；<br />
@@ -120,7 +120,7 @@ export default function Home() {
             ）演示卡顿，开发环境因为有 StrictMode 双渲染和额外检查，数据会被放大。
           </li>
           <li>
-            现场先把顶栏的「模拟单次渲染耗时」调到 <b>6~10ms</b>，视频投影才看得出区别。
+            演示时把顶栏的「模拟单次渲染耗时」调到 <b>6~10ms</b>，投影上才看得出区别。
           </li>
         </ul>
       </Panel>
