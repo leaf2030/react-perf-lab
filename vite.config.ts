@@ -17,15 +17,17 @@ export default defineConfig({
      *   - 首屏只需要拉 vendor + Layout，各章节页面全部按需
      */
     rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined
-          if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
-            return 'vendor-react'
-          }
-          if (id.includes('react-router')) return 'vendor-router'
-          return 'vendor'
-        },
+      // Vite 8 (rolldown) 下 manualChunks 的函数写法会把 react-dom 混进 antd 包，
+      // 用 advancedChunks 按顺序显式分组：先匹配的先赢，分包结果可预期。
+      advancedChunks: {
+        groups: [
+          { name: 'vendor-react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          { name: 'vendor-router', test: /[\\/]node_modules[\\/]react-router/ },
+          {
+            name: 'vendor-antd',
+            test: /[\\/]node_modules[\\/](antd|@ant-design|@rc-component|rc-[a-z-]+)[\\/]/,
+          },
+        ],
       },
     },
 

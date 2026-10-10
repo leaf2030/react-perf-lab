@@ -1131,9 +1131,13 @@ input[type='range'] {
 }
 
 /* ============================================================
-   FiberTreeDiagram —— 首页开场的「React 并发渲染」流程图
-   网格底纹 + 方框/菱形 + 箭头，纯 SVG
+   FiberTreeDiagram —— 首页开场的「React 一次更新的完整流程」
+   网格底流程图（纯 SVG）+ antd 卡片详解
    ============================================================ */
+
+.flow__intro {
+  margin-bottom: 16px;
+}
 
 .flow__canvas {
   border: 1px solid var(--border-secondary);
@@ -1150,7 +1154,7 @@ input[type='range'] {
 .flow__canvas svg {
   display: block;
   width: 100%;
-  min-width: 860px;
+  min-width: 900px;
   height: auto;
 }
 
@@ -1166,19 +1170,70 @@ input[type='range'] {
   font-weight: 500;
 }
 
-.flow__note {
-  margin-top: 16px;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  background: var(--primary-bg);
-  border: 1px solid var(--primary-border);
+/* ---------- 五阶段卡片 ---------- */
+
+.flow__phases {
+  margin-top: 20px;
+}
+
+.flow__phases-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.flow__card {
+  height: 100%;
+}
+
+.flow__card-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.flow__card-no {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.flow__card-plain {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-dim);
+}
+
+.flow__card-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.flow__card-terms .ant-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-inline-end: 0;
+}
+
+.flow__card-tip {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-secondary);
   font-size: 12.5px;
   line-height: 1.7;
   color: var(--text-dim);
 }
 
-.flow__note b {
+.flow__card-tip b {
   color: var(--text);
+}
+
+.flow__outro {
+  margin-top: 20px;
 }
 
 .toc {

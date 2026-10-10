@@ -1,34 +1,50 @@
-/* ============================================================
-   FiberTreeDiagram —— 首页开场的「React 并发渲染」流程图
+import { Alert, Card, Col, Row, Tag } from 'antd'
 
-   借鉴经典调度流程图的画法：方框 = 步骤，菱形 = 判断，
-   虚线框 = 浏览器环境，网格底 = 调度时间线。
-   讲给 Vue 团队：Vue 的更新是同步一口气跑完；React 中间多了
-   「时间片检查」和「让出主线程」两步。纯 SVG，不依赖图表库。
+/* ============================================================
+   FiberTreeDiagram —— 首页开场的「React 一次更新的完整流程」
+
+   目标：给 Vue 团队讲清楚 Fiber 架构到底在干什么，尽量说人话。
+   - 图：方框 = 做的事，菱形 = 判断，虚线框 = 浏览器泳道
+   - 每个节点都是「白话标题 + 术语小字」，先听懂再记名字
+   - 图下用卡片逐步展开，最后一句结论收口
    ============================================================ */
 
-type BoxLines = { text: string; size?: number; color?: string; bold?: boolean }[]
-
-/** 蓝色流程框（正常步骤） */
-function Box({ x, y, w, h, lines }: { x: number; y: number; w: number; h: number; lines: BoxLines }) {
+/** 蓝色流程框（做的事）：白话主标题 + 术语小字 */
+function Box({
+  x,
+  y,
+  w,
+  h,
+  title,
+  sub,
+  tone = 'blue',
+}: {
+  x: number
+  y: number
+  w: number
+  h: number
+  title: string
+  sub?: string
+  tone?: 'blue' | 'red' | 'plain'
+}) {
   const cy = y + h / 2
-  const start = cy - ((lines.length - 1) * 16) / 2
+  const palette = {
+    blue: { fill: '#e6f4ff', stroke: '#91caff', title: '#0958d9' },
+    red: { fill: '#fff2f0', stroke: '#ffa39e', title: '#cf1322' },
+    plain: { fill: '#ffffff', stroke: '#d9d9d9', title: 'rgba(0,0,0,.88)' },
+  }[tone]
+  const titleY = sub ? cy - 5 : cy + 4
   return (
     <g>
-      <rect x={x} y={y} width={w} height={h} rx={8} fill="#e6f4ff" stroke="#91caff" strokeWidth={1.2} />
-      {lines.map((l, i) => (
-        <text
-          key={l.text}
-          x={x + w / 2}
-          y={start + i * 16 + 4}
-          textAnchor="middle"
-          fontSize={l.size ?? 13}
-          fontWeight={l.bold === false ? 400 : 600}
-          fill={l.color ?? '#0958d9'}
-        >
-          {l.text}
+      <rect x={x} y={y} width={w} height={h} rx={8} fill={palette.fill} stroke={palette.stroke} strokeWidth={1.2} />
+      <text x={x + w / 2} y={titleY} textAnchor="middle" fontSize={12.5} fontWeight={600} fill={palette.title}>
+        {title}
+      </text>
+      {sub ? (
+        <text x={x + w / 2} y={titleY + 17} textAnchor="middle" fontSize={10} fill="rgba(0,0,0,.55)">
+          {sub}
         </text>
-      ))}
+      ) : null}
     </g>
   )
 }
@@ -58,7 +74,7 @@ function Diamond({
     <g>
       <polygon points={pts} fill={fill} stroke={stroke} strokeWidth={1.2} />
       {lines.map((t, i) => (
-        <text key={t} x={cx} y={start + i * 16 + 4} textAnchor="middle" fontSize={12.5} fontWeight={600} fill={color}>
+        <text key={t} x={cx} y={start + i * 16 + 4} textAnchor="middle" fontSize={12} fontWeight={600} fill={color}>
           {t}
         </text>
       ))}
@@ -66,29 +82,29 @@ function Diamond({
   )
 }
 
-/** 带箭头的路径 */
+/** 带箭头的连线 */
 function Arrow({ d }: { d: string }) {
   return <path d={d} fill="none" stroke="#8c8c8c" strokeWidth={1.3} markerEnd="url(#flow-arrow)" />
 }
 
-/** 箭头旁的文字标签（白描边，保证在网格上可读） */
+/** 连线上的文字（白描边，压住网格） */
 function Lbl({ x, y, text, center = false }: { x: number; y: number; text: string; center?: boolean }) {
   return (
-    <text x={x} y={y} fontSize={11.5} fill="#595959" className="flow__lbl" textAnchor={center ? 'middle' : 'start'}>
+    <text x={x} y={y} fontSize={11} fill="#595959" className="flow__lbl" textAnchor={center ? 'middle' : 'start'}>
       {text}
     </text>
   )
 }
 
-/** 浏览器虚线框里的堆叠小项 */
-function EnvItem({ x, y, w, text, hot = false }: { x: number; y: number; w: number; text: string; hot?: boolean }) {
+/** 浏览器泳道里的小项 */
+function Lane({ x, y, w, text, hot = false }: { x: number; y: number; w: number; text: string; hot?: boolean }) {
   return (
     <g>
       <rect
         x={x}
         y={y}
         width={w}
-        height={30}
+        height={40}
         rx={6}
         fill={hot ? '#e6f4ff' : '#fff7e6'}
         stroke={hot ? '#91caff' : '#ffd591'}
@@ -96,7 +112,7 @@ function EnvItem({ x, y, w, text, hot = false }: { x: number; y: number; w: numb
       />
       <text
         x={x + w / 2}
-        y={y + 19}
+        y={y + 25}
         textAnchor="middle"
         fontSize={12}
         fontWeight={600}
@@ -108,11 +124,64 @@ function EnvItem({ x, y, w, text, hot = false }: { x: number; y: number; w: numb
   )
 }
 
+/** 五个阶段的大白话说明 */
+const PHASES = [
+  {
+    no: '①',
+    name: '发生更新，先写一张「单子」',
+    plain: '你点了一下按钮（或者 setState、接口回来了），React 先把这次改动写成一张「单子」，再给单子贴上优先级标签。',
+    terms: ['createUpdate', 'lane 优先级'],
+    tip: '这一步是同步的，只花几微秒，几乎不可能成为瓶颈 —— 别在这儿瞎优化。',
+  },
+  {
+    no: '②',
+    name: '排队，等浏览器喘口气',
+    plain: '把活儿交给调度器排队。它用 MessageChannel 约一个空档来干活，绝不霸占主线程。',
+    terms: ['Scheduler', 'taskQueue', '小顶堆排序'],
+    tip: '这就是 React 看起来「慢半拍」的原因：它在等浏览器先处理完用户输入。',
+  },
+  {
+    no: '③',
+    name: '一格一格地算（可中断）',
+    plain: '先建一棵草稿树试算，一个节点一个节点地处理；每算完一小段就问一句「这一帧还有时间吗？」',
+    terms: ['workLoop', 'beginWork ↓ completeWork ↑', 'shouldYield()'],
+    tip: '时间用完就保存进度、让出主线程；中途来了更急的活（比如用户打字），草稿可以直接扔掉重做 —— 这就是并发渲染。',
+  },
+  {
+    no: '④',
+    name: '一口气提交（不可中断）',
+    plain: '草稿算完，真正去改 DOM 的三件小事必须连续做完，中间谁也不能插队。',
+    terms: ['before mutation', 'mutation', 'layout'],
+    tip: '这一步最贵、也最不能省。所以要尽量减少「需要提交的差异」—— memo、减少重渲染的意义正在这里。',
+  },
+  {
+    no: '⑤',
+    name: '画到屏幕上，再跑副作用',
+    plain: '浏览器把画面画出来，然后才轮到 useEffect 执行。',
+    terms: ['paint', 'useEffect'],
+    tip: 'useLayoutEffect 卡在绘制之前（会阻塞上屏），useEffect 在绘制之后（不阻塞）—— 第 07 章有现场对比。',
+  },
+]
+
 export function FiberTreeDiagram() {
   return (
     <div className="flow">
+      <Alert
+        className="flow__intro"
+        type="info"
+        showIcon
+        message="一句话版本"
+        description={
+          <>
+            一次 setState 之后：<b>打包改动</b> → <b>排队等空闲</b> → <b>一格一格地算</b>（可以中途暂停、甚至重来）→{' '}
+            <b>一口气写进 DOM</b>（不能暂停）→ <b>浏览器画出来</b>。Vue 是「一口气跑完」，React 是「随时能按暂停键」，
+            差别全在中间那两步。
+          </>
+        }
+      />
+
       <div className="flow__canvas">
-        <svg viewBox="0 0 1032 516" role="img" aria-label="React 并发渲染流程图：一次 setState 之后发生了什么">
+        <svg viewBox="0 0 1032 676" role="img" aria-label="React 一次更新的完整流程图">
           <defs>
             <marker
               id="flow-arrow"
@@ -127,139 +196,147 @@ export function FiberTreeDiagram() {
             </marker>
           </defs>
 
-          {/* ---------- 第一行：主流程 ---------- */}
-          <Box
-            x={20}
-            y={78}
-            w={104}
-            h={44}
-            lines={[
-              { text: 'React' },
-              { text: 'setState 更新', size: 10.5, color: 'rgba(0,0,0,.65)', bold: false },
-            ]}
-          />
-          <Box
-            x={160}
-            y={78}
-            w={120}
-            h={44}
-            lines={[
-              { text: '请求调度' },
-              { text: 'Scheduler 入队', size: 10.5, color: 'rgba(0,0,0,.65)', bold: false },
-            ]}
-          />
-          <Box
-            x={318}
-            y={78}
-            w={104}
-            h={44}
-            lines={[
-              { text: '执行任务' },
-              { text: 'workLoop', size: 10.5, color: 'rgba(0,0,0,.65)', bold: false },
-            ]}
-          />
-          <Diamond cx={530} cy={100} hw={86} hh={48} lines={['队列里还有', '任务单元吗？']} />
-          <Box
-            x={640}
-            y={72}
-            w={150}
-            h={56}
-            lines={[
-              { text: '执行任务单元' },
-              { text: 'beginWork / completeWork', size: 9.5, color: 'rgba(0,0,0,.65)', bold: false },
-            ]}
-          />
-          <Diamond cx={920} cy={100} hw={96} hh={52} lines={['本帧时间片', '还剩吗？']} tone="red" />
+          {/* ================= 第一行：发生更新 → 排队 ================= */}
+          <Box x={24} y={46} w={132} h={64} title="① 发生更新" sub="点按钮 / setState" />
+          <Box x={186} y={46} w={156} h={64} title="② 写一张『改动单』" sub="createUpdate + lane" />
+          <Box x={372} y={46} w={164} h={64} title="③ 排进调度队列" sub="Scheduler 按优先级排" />
 
-          {/* ---------- 第二行：commit 分支 与 让出分支 ---------- */}
-          <Box
-            x={455}
-            y={196}
-            w={150}
-            h={52}
-            lines={[
-              { text: 'commit 提交阶段', color: '#cf1322' },
-              { text: '同步执行 · 不可中断', size: 10.5, color: '#cf1322', bold: false },
-            ]}
-          />
-          <Box
-            x={455}
-            y={296}
-            w={150}
-            h={44}
-            lines={[
-              { text: '浏览器绘制渲染', color: 'rgba(0,0,0,.88)' },
-              { text: 'paint', size: 10, color: 'rgba(0,0,0,.45)', bold: false },
-            ]}
-          />
-          <Box
-            x={845}
-            y={196}
-            w={150}
-            h={52}
-            lines={[
-              { text: '让出主线程', color: '#d46b08' },
-              { text: '可被高优先级插队', size: 10, color: 'rgba(0,0,0,.65)', bold: false },
-            ]}
-          />
-
-          {/* ---------- 左下：浏览器环境（虚线框 + 堆叠项） ---------- */}
+          {/* ================= 第二行：渲染循环（可中断） ================= */}
           <rect
-            x={60}
-            y={320}
-            width={300}
-            height={180}
+            x={16}
+            y={158}
+            width={1000}
+            height={126}
             rx={10}
-            fill="#fafafa"
-            stroke="#d9d9d9"
-            strokeWidth={1.2}
-            strokeDasharray="6 4"
+            fill="#fafcff"
+            stroke="#91caff"
+            strokeWidth={1}
+            strokeDasharray="5 4"
           />
-          <text x={76} y={341} fontSize={12.5} fontWeight={600} fill="#595959">
-            浏览器
+          <text x={20} y={151} fontSize={11.5} fontWeight={600} fill="#0958d9">
+            渲染阶段：可以暂停、可以中途扔掉重做
           </text>
-          <EnvItem x={95} y={352} w={230} text="事件处理" />
-          <EnvItem x={95} y={390} w={230} text="JS 环境" />
-          <EnvItem x={95} y={428} w={230} text="布局与绘制" />
-          <EnvItem x={95} y={466} w={230} text="空闲时间 · 时间片来源" hot />
 
-          {/* ---------- 箭头 ---------- */}
-          {/* 主流程向右 */}
-          <Arrow d="M124,100 H156" />
-          <Arrow d="M280,100 H314" />
-          <Arrow d="M422,100 H440" />
-          <Arrow d="M616,100 H636" />
-          <Arrow d="M790,100 H820" />
-          {/* 红菱形「还有时间」：顶部大回环，回到执行任务单元 */}
-          <Arrow d="M920,48 V20 H715 V68" />
-          {/* 蓝菱形「没有了」→ commit */}
-          <Arrow d="M530,148 V192" />
-          {/* commit → 绘制 */}
-          <Arrow d="M530,248 V292" />
-          {/* 红菱形「用完了」→ 让出主线程 */}
-          <Arrow d="M920,152 V192" />
-          {/* 让出 → 浏览器环境 */}
-          <Arrow d="M920,248 V410 H364" />
-          {/* 浏览器空闲 → 回到调度 */}
-          <Arrow d="M220,320 V126" />
+          <Box x={32} y={180} w={150} h={72} title="④ 先建一棵草稿树" sub="workInProgress 双缓冲" />
+          <Box x={210} y={180} w={176} h={72} title="⑤ 一格一格地算" sub="beginWork ↓ completeWork ↑" />
+          <Diamond cx={486} cy={216} hw={84} hh={54} lines={['还有下一个', '节点要算吗？']} />
+          <Diamond cx={692} cy={216} hw={94} hh={54} lines={['这一帧的 5ms', '用完了吗？']} tone="red" />
+          <Box x={828} y={180} w={180} h={72} title="⑥ 存进度 · 让出主线程" sub="下一帧从断点接着算" tone="plain" />
 
-          {/* ---------- 边上的标签 ---------- */}
-          <Lbl x={618} y={92} text="有" />
-          <Lbl x={818} y={14} text="还有时间，执行下一个单元" center />
-          <Lbl x={542} y={174} text="没有了" />
-          <Lbl x={932} y={176} text="用完了" />
-          <Lbl x={642} y={404} text="主线程空闲，拿下一个时间片" center />
-          <Lbl x={232} y={220} text="空闲时间片" />
+          {/* ================= 第三行：提交（不可中断） ================= */}
+          <rect x={16} y={318} width={320} height={114} rx={10} fill="#fffafa" stroke="#ffa39e" strokeWidth={1} strokeDasharray="5 4" />
+          <text x={20} y={311} fontSize={11.5} fontWeight={600} fill="#cf1322">
+            提交阶段：不可暂停，一口气做完
+          </text>
+          <rect x={24} y={330} width={300} height={90} rx={8} fill="#fff2f0" stroke="#ffa39e" strokeWidth={1.2} />
+          <text x={174} y={353} textAnchor="middle" fontSize={12.5} fontWeight={600} fill="#cf1322">
+            ⑦ 一次性提交，真正改 DOM
+          </text>
+          <rect x={40} y={366} width={84} height={28} rx={6} fill="#fff" stroke="#ffccc7" />
+          <text x={82} y={384} textAnchor="middle" fontSize={10.5} fontWeight={600} fill="#cf1322">
+            ① 拍照
+          </text>
+          <rect x={132} y={366} width={84} height={28} rx={6} fill="#fff" stroke="#ffccc7" />
+          <text x={174} y={384} textAnchor="middle" fontSize={10.5} fontWeight={600} fill="#cf1322">
+            ② 改 DOM
+          </text>
+          <rect x={224} y={366} width={84} height={28} rx={6} fill="#fff" stroke="#ffccc7" />
+          <text x={266} y={384} textAnchor="middle" fontSize={10.5} fontWeight={600} fill="#cf1322">
+            ③ 跑 layout
+          </text>
+          <text x={174} y={410} textAnchor="middle" fontSize={9} fill="rgba(0,0,0,.45)">
+            getSnapshotBeforeUpdate / mutation / useLayoutEffect
+          </text>
+
+          <Box x={364} y={339} w={170} h={72} title="⑧ 浏览器绘制上屏" sub="paint" tone="plain" />
+          <Box x={574} y={339} w={190} h={72} title="⑨ 最后执行 useEffect" sub="绘制之后 · 异步" tone="plain" />
+
+          {/* ================= 第四行：浏览器泳道 ================= */}
+          <rect x={16} y={510} width={1000} height={142} rx={10} fill="#fafafa" stroke="#d9d9d9" strokeWidth={1.2} strokeDasharray="6 4" />
+          <text x={34} y={536} fontSize={12} fontWeight={600} fill="#595959">
+            浏览器主线程 —— 你的代码、浏览器自己的活，全在这条线上排队
+          </text>
+          <Lane x={36} y={548} w={470} text="事件处理（点击、输入、滚动）" />
+          <Lane x={522} y={548} w={470} text="JS 执行" />
+          <Lane x={36} y={600} w={470} text="布局与绘制（重排、重绘）" />
+          <Lane x={522} y={600} w={470} text="空闲时间 → 这就是时间片的来源" hot />
+
+          {/* ================= 箭头 ================= */}
+          <Arrow d="M156,78 H182" />
+          <Arrow d="M342,78 H368" />
+          {/* 排队完，轮到它算 */}
+          <Arrow d="M454,110 V138 H107 V176" />
+          <Arrow d="M182,216 H206" />
+          <Arrow d="M386,216 H398" />
+          <Arrow d="M570,216 H594" />
+          <Arrow d="M786,216 H824" />
+          {/* 还有时间 → 回到「一格一格地算」 */}
+          <Arrow d="M692,162 V124 H298 V176" />
+          {/* 全算完了 → 进入提交 */}
+          <Arrow d="M486,270 V306 H174 V326" />
+          {/* 让出主线程 → 浏览器泳道 */}
+          <Arrow d="M918,252 V506" />
+          {/* 浏览器空闲 → 回到草稿树接着算 */}
+          <Arrow d="M8,510 V216 H28" />
+          <Arrow d="M324,375 H360" />
+          <Arrow d="M534,375 H570" />
+
+          {/* ================= 连线文字 ================= */}
+          <Lbl x={300} y={132} text="轮到它算了" />
+          <Lbl x={495} y={118} text="这一帧还有时间 → 接着算下一个节点" center />
+          <Lbl x={580} y={208} text="有" />
+          <Lbl x={801} y={208} text="用完了" />
+          <Lbl x={330} y={300} text="全算完了 → 去提交" />
+          <Lbl x={928} y={392} text="5ms 用完，先让位" />
+          <Lbl x={34} y={498} text="浏览器空闲了 → 回来从断点继续" />
         </svg>
       </div>
 
-      <div className="flow__note">
-        <b>跟 Vue 最大的不同：</b>
-        Vue 的更新是同步一口气跑完；React 在中间多了「时间片检查」和「让出主线程」两步 ——
-        useTransition / useDeferredValue 这些并发特性都发生在黄色区域里。但注意
-        <b> commit 一旦开始就不可中断</b>
-        ，所以优化的本质仍是减少要处理的节点，而不是指望并发替你兜底。
+      <div className="flow__phases">
+        <div className="flow__phases-title">逐步展开：每个阶段到底在做什么（先说人话，术语只是备注）</div>
+        <Row gutter={[12, 12]}>
+          {PHASES.map((phase) => (
+            <Col xs={24} md={12} xl={8} key={phase.no}>
+              <Card
+                size="small"
+                className="flow__card"
+                title={
+                  <span className="flow__card-title">
+                    <span className="flow__card-no">{phase.no}</span>
+                    {phase.name}
+                  </span>
+                }
+              >
+                <p className="flow__card-plain">{phase.plain}</p>
+                <div className="flow__card-terms">
+                  {phase.terms.map((term) => (
+                    <Tag key={term} color="blue" variant="filled">
+                      {term}
+                    </Tag>
+                  ))}
+                </div>
+                <p className="flow__card-tip">
+                  <b>要点：</b>
+                  {phase.tip}
+                </p>
+              </Card>
+            </Col>
+          ))}
+        </Row>
       </div>
+
+      <Alert
+        className="flow__outro"
+        type="warning"
+        showIcon
+        message="所以优化的重点在哪？"
+        description={
+          <>
+            红色那段（提交）不能暂停也省不掉，蓝色那段（计算）可以暂停但工作量还在。真正的省法只有一个：
+            <b>让需要计算和提交的节点变少</b> —— memo、状态下沉、虚拟化、缓存，全都是干这一件事。
+          </>
+        }
+      />
     </div>
   )
 }
