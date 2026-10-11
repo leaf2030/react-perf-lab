@@ -179,8 +179,9 @@ let loadCount = 0
 /**
  * 一个「一定会失败」的 loader。
  *
- * 为什么用 attempt 而不是一个全局开关：StrictMode 会让组件渲染两次，
- * 任何"只失败一次"的全局标记都会被第一次（可能被丢弃的）渲染消耗掉，演示结果就不稳定了。
+ * 为什么用 attempt 而不是一个全局开关：React.lazy 会记住一次加载失败的状态，
+ * 重试必须换成全新的 lazy 组件实例（attempt 变化 → useMemo 重建），
+ * 用全局标记的话失败一次后无法复位，演示结果不稳定。
  */
 function makeFaultyLoader(attempt: number) {
   return () => {

@@ -83,28 +83,36 @@ function MemoFixedParent() {
 
 type MemoChildProps = {
   tag: string
-  config: { theme: string }
+  config: { theme: string; token: string }
   onSelect: () => void
 }
 
 const MemoChild = memo(function MemoChild({ tag, config, onSelect }: MemoChildProps) {
   return (
-    <HeavyBox name={tag} note={`config.theme = ${config.theme}`}>
+    <HeavyBox name={tag} note={`config 引用号：${config.token}`}>
       <button type="button" className="btn" onClick={onSelect}>
-        选中这一行
+        调用 onSelect（看控制台）
       </button>
     </HeavyBox>
   )
 })
 
+// 模块级引用计数器：给每个新创建的对象发一个「身份证号」
+// 号变 = 引用变（新对象）；号不变 = 引用没变（同一个对象）
+let tokenSeq = 0
+const nextToken = () => `#${++tokenSeq}`
+
 function UnstablePropsDemo() {
   const renders = useRenderCount('Parent')
   const [tick, setTick] = useState(0)
-  const [selected, setSelected] = useState('')
 
-  // useMemo / useCallback 保证引用稳定，是让 memo 生效的前提
-  const stableConfig = useMemo(() => ({ theme: 'dark' }), [])
-  const handleSelectStable = useCallback(() => setSelected('稳定 props 那一行'), [])
+  // ❌ 每次父组件渲染，这两行都会重新执行 → 生成全新的对象和函数
+  const unstableConfig = { theme: 'dark', token: nextToken() }
+  const unstableSelect = () => console.info('点的是「不稳定」那一行')
+
+  // ✅ useMemo / useCallback 保证引用恒定：只创建一次，之后反复复用同一个
+  const stableConfig = useMemo(() => ({ theme: 'dark', token: nextToken() }), [])
+  const stableSelect = useCallback(() => console.info('点的是「稳定」那一行'), [])
 
   return (
     <div className="stack">
@@ -112,21 +120,27 @@ function UnstablePropsDemo() {
         <button type="button" className="btn" onClick={() => setTick((value) => value + 1)}>
           触发父组件重渲染：{tick}
         </button>
-        <span className="hint">已选中：{selected || '（无）'}</span>
         <RenderBadge name="Parent" count={renders} />
       </div>
 
       <div className="grid-2">
-        <MemoChild
-          tag="memo + 不稳定 props"
-          config={{ theme: 'dark' }}
-          onSelect={() => setSelected('不稳定 props 那一行')}
-        />
-        <MemoChild tag="memo + 稳定 props" config={stableConfig} onSelect={handleSelectStable} />
+        <div className="stack">
+          <p className="hint" style={{ margin: 0 }}>
+            ❌ 每次渲染都新建 config / onSelect
+          </p>
+          <MemoChild tag="memo + 不稳定 props" config={unstableConfig} onSelect={unstableSelect} />
+        </div>
+        <div className="stack">
+          <p className="hint" style={{ margin: 0 }}>
+            ✅ useMemo / useCallback 固定引用
+          </p>
+          <MemoChild tag="memo + 稳定 props" config={stableConfig} onSelect={stableSelect} />
+        </div>
       </div>
 
       <p className="hint">
-        两边都套了 React.memo。左边每次重渲染都会创建新的对象和函数，浅比较必然失败；右边引用稳定，memo 才真正生效。
+        点「触发父组件重渲染」：左边的引用号每次都变（新对象 → 浅比较失败 → memo 白加），
+        右边的引用号永远是同一个（memo 真正生效 → 徽章不动）。
       </p>
     </div>
   )
@@ -297,8 +311,7 @@ export default function RerenderPage() {
         </table>
 
         <p className="hint mt-12">
-          另外要知道：<b>StrictMode + 开发环境</b>下 React 会故意双调用渲染函数来暴露副作用问题，
-          所以下面的计数在生产构建里会更小。演示时只看「谁涨了、谁没涨」。
+          下面的计数是真实的渲染次数（已移除 StrictMode，每次更新渲染函数只执行一次）。
         </p>
       </Panel>
 
@@ -350,13 +363,13 @@ const onPick = useCallback(() => {}, [])
         title="Demo 3｜memo 失效的经典场景：新对象 / 新函数"
         tag="高频坑"
         tone="bad"
-        desc="左右两个子组件都用了 memo，但只有右边真正生效。"
+        desc="左右都套了 memo。点按钮看两边的「引用号」：左边每次都变，右边永远是同一个 —— 引用变了 memo 就失效，引用稳定 memo 才生效。"
         code={`// ❌ 每次渲染都是新对象 + 新函数 → memo 白加
-<MemoChild config={{ theme: 'dark' }} onSelect={() => setSelected(id)} />
+<MemoChild config={{ theme: 'dark' }} onSelect={() => doSomething()} />
 
 // ✅ 引用稳定 → memo 生效
 const config = useMemo(() => ({ theme: 'dark' }), [])
-const onSelect = useCallback(() => setSelected(id), [id])
+const onSelect = useCallback(() => doSomething(), [])
 <MemoChild config={config} onSelect={onSelect} />
 
 // ✅ 更好的写法：把不变的配置提到模块级，连 useMemo 都省了

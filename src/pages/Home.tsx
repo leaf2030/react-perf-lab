@@ -81,11 +81,10 @@ export default function Home() {
       </Panel>
 
       <div className="hero">
-        <h1>开场三句话</h1>
         <p>
           1. React 的性能问题，90% 是「不必要的重渲染」；<br />
           2. 优化前先度量，React DevTools 的 Profiler 是唯一权威；<br />
-          3. React.memo / useMemo / useCallback 不是银弹，它们本身也有成本。
+          3. React.memo / useMemo / useCallback 不是万能的，它们本身也有成本。
         </p>
       </div>
 

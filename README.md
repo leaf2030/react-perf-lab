@@ -23,7 +23,7 @@ npm run lint       # oxlint
 1. 安装 **React Developer Tools** 浏览器扩展。
 2. 打开 **Profiler** 面板，勾选 `Highlight updates when components render` —— 重渲染的组件会出现彩色描边。
 3. 打开 **Components** 面板，勾选 `Highlight updates`，可以逐层看 props 变化。
-4. 用 `npm run build` + `npm run preview` 演示卡顿（开发环境有 StrictMode 双渲染，数字会被放大）。
+4. 用 `npm run build` + `npm run preview` 演示卡顿，数据更接近真实。
 5. 顶栏的「模拟单次渲染耗时」建议调到 **6~10ms**，投影出来才看得出区别。
 
 ## 顶栏的开关
@@ -95,9 +95,7 @@ src/
 
 ## 关于数字，先说明两件事
 
-1. **StrictMode**：`src/main.tsx` 里刻意保留了 `<StrictMode>`。开发环境它会让组件渲染两次、让
-   `useMemo` 的工厂函数执行两次，用来暴露副作用问题。所以页面上看到的计数和耗时都会偏大 ——
-   演示时只需要对比「谁涨了、谁没涨」，绝对值不重要。要看真实数字请用 `npm run build` + `npm run preview`。
+1. **StrictMode**：`src/main.tsx` 已移除 `<StrictMode>`，渲染计数徽章显示的是真实次数（一次更新 +1）。
 
 2. **oxlint 配置**：为了让 `npm run lint` 保持干净，`.oxlintrc.json` 里做了这些设置：
 

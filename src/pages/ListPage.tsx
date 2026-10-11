@@ -89,7 +89,7 @@ function NaiveListDemo() {
 
       <p className="hint">
         依次点 2,000 → 20,000 条，能明显感觉到页面「卡一下」：主线程全部花在创建 DOM 节点上，滚动条也会变得很重。
-        （开发环境有 StrictMode 双渲染和额外的检查，用 <code>npm run build</code> + <code>npm run preview</code> 看生产数据会更接近真实。）
+        （用 <code>npm run build</code> + <code>npm run preview</code> 看生产数据会更接近真实。）
       </p>
     </div>
   )

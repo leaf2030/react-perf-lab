@@ -104,7 +104,7 @@ function FilterWithMemo({ keyword, renders }: { keyword: string; renders: number
     const data = filterAndSort(ITEMS, keyword)
     const elapsed = performance.now() - started
 
-    // 只在「真的重算」的时候记账（StrictMode 下开发环境会把工厂函数调用两次）
+    // 只在「真的重算」的时候记账
     stats.current.calls += 1
     stats.current.total += elapsed
 
@@ -210,7 +210,6 @@ function UseCallbackDemo() {
 
       <p className="hint">
         左边每点一次父组件按钮就「重新订阅」一次，右边只在挂载时订阅一次。
-        （StrictMode 下初次挂载的 effect 会被执行两次，所以初始值可能是 2。）
       </p>
     </div>
   )
