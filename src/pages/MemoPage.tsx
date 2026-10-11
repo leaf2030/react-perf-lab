@@ -394,12 +394,6 @@ export default function MemoPage() {
         tag="最典型的收益场景"
         tone="default"
         desc="左右两个分支拿到完全相同的 keyword，唯一区别是右边把计算结果放进了 useMemo。"
-        points={[
-          '反复点「只让父组件重渲染」：左边每次都真的跑了一遍 filter + sort，右边的耗时停在 0。',
-          'useMemo 的依赖数组是「什么变了才需要重算」，不是「什么时候渲染」。',
-          '注意：输入框内容变了的时候两边都在算 —— useMemo 只解决「依赖没变却重复计算」，不解决「依赖真的变了」。',
-          '更彻底的做法是把输入的 keyword 和昂贵列表拆成两个组件，见第 03 章「状态下沉」。',
-        ]}
         code={`// ❌ 每次渲染都重新筛选 + 排序
 const result = items.filter(...).sort(...)
 
@@ -419,11 +413,6 @@ const result = useMemo(() => filterAndSort(items, keyword), [items, keyword])`}
         tag="高频困惑点"
         tone="good"
         desc="很多人问「我加了 useCallback 怎么还是重渲染」。答案是：useCallback 本身不阻止重渲染，它只是让引用不变。"
-        points={[
-          '内联箭头函数每次渲染都是新的引用，会让子组件的 useEffect 依赖「永远在变」→ 反复订阅 / 取消订阅。',
-          '配合 React.memo 时，useCallback 能挡住子组件重渲染；配合 useEffect 时，它能挡住重复执行副作用。',
-          '反过来说：如果子组件没加 memo，也没把它当依赖用，useCallback 就是纯开销。',
-        ]}
         codeTone="good"
         code={`// ❌ 每次渲染都是新函数 → 子组件的 effect 每次都重跑（重新订阅）
 <Child onChange={() => doSomething()} />
@@ -444,12 +433,6 @@ const onChange = useCallback(() => doSomething(), [])
         tag="最容易写出 bug 的地方"
         tone="bad"
         desc="把输入框改成别的值，再点两个按钮，看 0.6 秒后打印出来的东西有什么不同。"
-        points={[
-          '每次渲染都会产生一个新的闭包，它捕获的是「那一次渲染」的变量。空依赖数组 = 永远用第一次渲染的那个闭包。',
-          'React 不会因为你漏写依赖而报错，只会静默地给你旧数据 —— 这类 bug 线上最难查。',
-          '依赖数组的规则：函数里用到的、来自组件作用域的所有响应式值，都应该写进去。',
-          '如果确实不想重建函数，用 useRef 保存最新值（"最新引用"模式），而不是删依赖。',
-        ]}
         code={`// ❌ 空依赖 + 读取外部变量 = 永远读到挂载时的值
 const handler = useCallback(() => {
   setTimeout(() => console.log(text), 600)
@@ -475,12 +458,6 @@ const handler = useCallback(() => {
         tag="不要过度优化"
         tone="default"
         desc="点一下按钮，看看「包一层缓存」比「直接算」慢多少倍。"
-        points={[
-          'useMemo 每次渲染都要做：比较依赖数组 + 保存/读取上一次的结果，这些都不是免费的。',
-          '经验值：只在计算耗时明显（比如 > 1ms，或者出现在循环里）时才用 useMemo。',
-          '更重要的判断依据：先用 Profiler 测，确认这里真的是瓶颈，再动手。',
-          'React Compiler（React 19 起可选的编译期优化）会把这类手工记忆化自动化，届时手写 useMemo 的场景会大幅减少。',
-        ]}
         code={`// ❌ 一行代码能算完的东西，不值得缓存
 const fullName = useMemo(() => first + ' ' + last, [first, last])
 

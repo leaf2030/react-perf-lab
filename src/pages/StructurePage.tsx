@@ -524,12 +524,6 @@ export default function StructurePage() {
         title="Demo 1｜状态下沉：把 state 放到真正需要它的组件里"
         tone="default"
         desc="左右两种写法功能完全一样，区别只是 keyword 这个 state 放在了哪一层。"
-        points={[
-          'React 没有"哪个组件依赖了哪个数据"的追踪能力，state 放在哪一层，那一层及其子树就得重渲染。',
-          '判断标准：这个 state 会被哪些组件读到？把它放到这些组件的"最近公共父组件"就好，不要图省事全放顶层。',
-          '如果状态必须在顶层（比如要发请求），用 children 把静态子树传进去，一样能挡掉重渲染。',
-          '这是 Vue 里不太需要操心的问题（响应式自动追踪到具体组件），所以从 Vue 过来的人特别容易踩。',
-        ]}
         code={`// ❌ keyword 放在顶层 → 打字时整个页面（含两个重面板）全部重渲染
 function Page() {
   const [keyword, setKeyword] = useState('')
@@ -581,12 +575,6 @@ function Page() {
         tag="必讲"
         tone="bad"
         desc="这不是性能问题，但它比性能问题更常出现在 Code Review 里，而且和 key 的复用机制直接相关。"
-        points={[
-          'key 是 React 判断"这个元素还是不是同一个组件实例"的唯一依据。',
-          '用 index 作 key：删掉第一项后，React 认为"key 0 还在，只是 props 变了"，于是复用 DOM 节点 → 非受控输入/内部 state 全部错位。',
-          '当列表会排序、过滤、插入、删除时，index key 一定会出问题；只有静态不动的列表才勉强能用。',
-          '如果实在没有 id，可以在数据进入前端时就生成一个（crypto.randomUUID() 或者后端返回）。',
-        ]}
         code={`// ❌ 列表会增删改排序时，index 会错位
 {items.map((item, index) => <Row key={index} item={item} />)}
 
@@ -603,12 +591,6 @@ const row = { ...input, id: crypto.randomUUID() }`}
         title="Demo 3｜不要把“可以算出来的值”存进 state"
         tone="default"
         desc="总价是可以从列表算出来的，一旦把它也存成 state，就有了两个真相来源。"
-        points={[
-          '能由已有 state / props 推导出来的值，一律不要存 state —— 这是 React 官方文档里的头号建议。',
-          '冗余 state 的代价：多一次同步逻辑、容易出现不一致，而且每次都要多维护一个 setState。',
-          '如果派生计算真的很贵，用 useMemo 而不是 useState 来缓存它（参考第 02 章）。',
-          '判断标准：这个值变了，是不是还要"顺便"同步另一个 state？如果是，它大概率不该是 state。',
-        ]}
         code={`// ❌ 两个 state，需要手动保持同步
 const [items, setItems] = useState(list)
 const [total, setTotal] = useState(sum(list))
@@ -635,11 +617,6 @@ const total = useMemo(() => items.reduce((sum, i) => sum + i.price, 0), [items])
         title="Demo 4｜顺带一提：自动批处理（automatic batching）"
         tone="good"
         desc="React 18 起，不管你在哪调用 setState，一次事件循环里的多次更新都只会渲染一次。"
-        points={[
-          '同步调用、setTimeout、Promise.then、原生事件里，全部自动批处理 —— 不需要再手动 unstable_batchedUpdates。',
-          '所以"合并 setState 以减少渲染"这类优化，在 React 18+ 基本不需要做了。',
-          '但要注意：批处理的是「渲染次数」，如果你在 render 里做了昂贵计算，一次渲染也够慢 —— 所以还是回到本章的主题：把渲染范围缩小。',
-        ]}
         code={`function handleClick() {
   // React 18+ 只渲染一次
   setA(a + 1)
@@ -660,11 +637,6 @@ setTimeout(() => {
         title="Demo 5｜组件拆分本身也是一种优化"
         tone="good"
         desc="把大组件拆小，让每个小组件只依赖自己需要的那部分数据，这样“谁变化谁渲染”的范围自然就小了。"
-        points={[
-          '一个 400 行的组件里任何一个 state 变化，整个组件都要重新执行 400 行代码。',
-          '拆成小组件后，状态可以下沉到最需要它的那一个，其余组件用 memo + 稳定 props 就能完全不动。',
-          '拆分粒度参考：这个组件的 state 变化时，页面上有多少内容"其实不该变"？',
-        ]}
         codeTone="good"
       >
         <PageStructureDemo />
@@ -675,13 +647,6 @@ setTimeout(() => {
         tag="API"
         tone="good"
         desc="useState 的 setter 和 useReducer 的 dispatch 引用都是稳定的，但 dispatch 还有一个额外好处：它让「更新逻辑」从组件里挪了出去。"
-        points={[
-          'dispatch 的引用在组件的整个生命周期内恒定不变，所以它是最理想的「传给 memo 子组件的回调」—— 不需要 useCallback 包一层。',
-          '状态更新逻辑复杂时（多个字段联动、多种动作），useReducer 把 reducer 函数提到组件外，每次渲染不用重新创建闭包。',
-          'reducer 必须是纯函数：同样的 state + action 永远得到同样的结果，这也是它比手写 setState 更可预测的地方。',
-          '注意 reducer 里必须返回新对象（{ ...state }），直接改 state 一样会出问题 —— 这一点和 useState 的不可变原则完全一致。',
-          '对照 Vue：reducer 有点像一个「只处理同步逻辑的 Pinia action」，dispatch 则相当于那个永远指向同一个函数的 store.$dispatch。',
-        ]}
         code={`// ❌ 用 useState + 内联函数传给 memo 子组件
 function Parent() {
   const [count, setCount] = useState(0)
@@ -711,13 +676,6 @@ function Parent() {
         title="Demo 7｜useRef：存「不参与渲染」的值"
         tone="good"
         desc="有些数据变了，界面完全不需要跟着变。把它们放进 state，就是在白白买一次渲染。"
-        points={[
-          'useRef 的三个典型用途：存 DOM 引用、存"上一次的值"、存不需要渲染的计数器/标志位。',
-          '改 ref.current 不会触发任何渲染，读 ref.current 也不会建立依赖关系 —— 所以它没有"渲染成本"。',
-          '反过来，如果这个值最终要显示在界面上，就必须用 state，否则界面不会更新（这是最容易踩的坑：ref 改了但页面没动）。',
-          '常见场景：埋点计数、滚动位置、拖拽过程中的中间坐标、requestAnimationFrame 的 id、上一次的 props 快照。',
-          '对照 Vue：Vue 的 ref() 是响应式的，改了就触发更新，所以没有直接对应物；更接近的其实是「用 let 声明的普通变量」，但那个在 React 里每次渲染都会重置 —— 这也是 useRef 不可替代的原因。',
-        ]}
         code={`// ❌ 不需要显示的值放进 state → 每次变化都白买一次渲染
 const [clicks, setClicks] = useState(0)   // 只是埋点计数，界面上根本不显示
 

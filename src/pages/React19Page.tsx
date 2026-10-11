@@ -480,15 +480,6 @@ export default function React19Page() {
         tag="React 19"
         tone="good"
         desc="接口要 0.9 秒。用 useOptimistic 之后，用户点下按钮的那一刻就看到结果，完全无等待感。"
-        points={[
-          '它实现的是「乐观更新」：先假设成功、立刻显示，失败时再回滚。',
-          '它优化的是「感知性能」，不是渲染性能 —— 总耗时不变，但用户不再盯着 loading。这一点和前面所有章节都不同。',
-          '关键约束：useOptimistic 的乐观值只在一次 transition 期间有效。等真实 state 更新完，乐观值会被自动丢弃。',
-          '必须包在 startTransition（或 form action）里用 —— 因为它的生命周期就是「这次异步操作期间」。',
-          '失败要回滚：catch 到错误后不要写真实 state，乐观值自然消失，再补一个 toast 提示用户。',
-          '适用场景：点赞、发消息、加购物车、改状态 —— 这些"成功是常态、失败是意外"的操作。',
-          '反过来说，支付、转账这类不能出错的场景不要用乐观更新，老老实实等结果。',
-        ]}
         codeTone="good"
         code={`const [optimistic, addOptimistic] = useOptimistic(
   savedList,
@@ -515,14 +506,6 @@ function submit() {
         title="Demo 2｜useActionState：表单的 pending / 错误 / 结果三合一"
         tone="good"
         desc="以前要三个 useState 加 try/catch，现在一个 hook 收口，而且能配合原生表单提交。"
-        points={[
-          '返回 [state, formAction, isPending]：状态、派发函数、加载标记，一次拿到。',
-          '配合 <form action={formAction}> 使用时，不需要写 onSubmit、不需要 preventDefault。',
-          '非受控表单的取值通过 FormData 传入 —— 减少了一个受控 state，也就少了一次因它引起的重渲染。',
-          'isPending 可以直接驱动禁用态和按钮文案，不用再维护一个 loading state。',
-          'JS 还在加载、还没 hydrate 完时，表单会降级为原生提交 —— 这是渐进增强，对首屏性能也是好事。',
-          '对照 Vue：这有点像 vee-validate / FormKit 帮你收口的那部分职责，但内建在框架里，不需要额外库。',
-        ]}
         codeTone="good"
         code={`const [state, formAction, isPending] = useActionState(
   async (prev, formData) => {
@@ -550,13 +533,6 @@ return (
         title="Demo 3｜Suspense + transition：让懒加载不再「闪一下」"
         tone="good"
         desc="加载同一个资源两次，一次裸 Suspense，一次用 transition 包住。看内容区有没有被骨架屏顶替。"
-        points={[
-          '裸用 Suspense：数据/代码没到时回退到 fallback → 已渲染的内容被替换 → 用户看到闪烁和布局跳动。',
-          '用 startTransition 包住这次更新：React 知道这是"非紧急"的挂起，会保留旧内容继续展示，直到新内容就绪。',
-          '这是路由切换最该用的组合：跳转时不闪白屏，旧页面停留到新页面准备好。',
-          '配套用 isPending 显示一个进度条或淡化效果（比如 opacity 降到 0.6），比骨架屏的观感好得多。',
-          '配合 react-router 7 时，部分场景框架已经内置了这个行为，可以先确认再用，避免重复实现。',
-        ]}
         codeTone="good"
         code={`// ❌ 裸 Suspense：加载期间旧内容被 fallback 顶替 → 闪一下
 <Suspense fallback={<Skeleton />}>
@@ -584,15 +560,6 @@ function open(id) {
         tag="必讲"
         tone="good"
         desc="在输入框里打字，切换标签，再切回来。对比「条件渲染（卸载）」和「Activity（保留）」的区别。"
-        points={[
-          '条件渲染（三元/&&）：切走就卸载，state 和 DOM 全部销毁，切回来重新挂载 —— 状态丢失 + 重新渲染一遍。',
-          '<Activity mode="hidden">：保留 state 和 DOM，只是不显示；同时停掉内部的 Effect（不会继续跑定时器、订阅）。',
-          '所以它同时解决了两个问题：状态保留（体验）+ 不继续跑副作用（性能）。这比"CSS 隐藏"更干净。',
-          'mode 还可以是 "visible"；切换时 React 会优先保留已有状态。',
-          '典型场景：Tab 面板、列表→详情→返回、多步表单向导、路由缓存。',
-          '⚠️ 注意版本：这是 React 19.2 的新组件。在此之前要自己实现（把 state 提到父层，或用 CSS display:none + 手动管 effect），成本很高。',
-          '这也是本分享需要更新的一处结论：过去常说「React 没有 KeepAlive 的对应物」，现在不成立了。',
-        ]}
         codeTone="good"
         code={`// ❌ 条件渲染：切走就卸载，回来时 state 全没了
 {tab === 'a' ? <PanelA /> : <PanelB />}
@@ -617,14 +584,6 @@ function open(id) {
         title="Demo 5｜React Compiler：以后还要手写 useMemo 吗？"
         tone="default"
         desc="这一节没有「对比 Demo」，而是一个必须说清的结论，关联前面几章。"
-        points={[
-          'React Compiler 在构建时自动分析组件，自动插入缓存 —— 效果等价于帮你写好 useMemo / useCallback / memo。',
-          '所以「到处手动加 memo」的价值会下降；但前九章的东西不会白讲，因为编译器不解决结构问题。',
-          '优先级顺序不变：① 结构（状态下沉、key、拆分） → ② 数据流（Context、store） → ③ 手写 memo → ④ 编译器兜底。',
-          '硬前提：代码必须符合 Rules of React。渲染期写外部变量、mutate props、在条件里写 hook —— 这些会让编译器直接跳过该组件。',
-          '落地路径：先开 lint 清违规 → 再按目录逐步开启 → 用 DevTools Profiler 验证，别一次性全量开。',
-          '给团队的判断：现在该不该上手？如果你们的 React 版本够新、代码库整洁，值得开始试点；如果是老项目，先把结构问题解决收益更大。',
-        ]}
         codeTone="default"
         code={`// 你写的代码（不用管缓存）
 function Filter({ items, keyword }) {
@@ -712,18 +671,6 @@ function Filter({ items, keyword }) {
             </tr>
           </tbody>
         </table>
-        <p className="hint" style={{ marginTop: 12, marginBottom: 0 }}>
-          <b>讲这一章的分寸：</b>新 API 容易讲成"炫技"，落到「它替代了什么、成本降低了多少」更扎实。
-          另外要标清版本 —— 讲 <code>Activity</code> 时如果现场同事的 React 还是 18，他们试了会报错。
-        </p>
-      </Panel>
-
-      <Panel title="⚠️ 本分享的一处结论已更新">
-        <p className="hint" style={{ margin: 0 }}>
-          第 09 章的 Vue ↔ React 对照表里，原本写着「React 没有 KeepAlive 的等价物」。
-          这句话在 <b>React 19.2 之后不再成立</b> —— <code>&lt;Activity&gt;</code> 就是官方对应物。
-          讲第 09 章时请以本章为准，否则会被熟悉 React 新版本的同事当场纠正。
-        </p>
       </Panel>
     </>
   )

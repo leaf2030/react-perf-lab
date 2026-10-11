@@ -89,7 +89,7 @@ function SplitDemo() {
           <input type="checkbox" checked={slow} onChange={(event) => toggleSlow(event.target.checked)} />
           <span>模拟慢速网络（延迟 1.2s）</span>
         </label>
-        <span className="hint">chunk 一旦加载过就会被浏览器缓存，想看效果请刷新页面</span>
+        <span className="hint">chunk 一旦加载过就会被浏览器缓存，刷新页面后重新加载</span>
       </div>
 
       <div className="grid-2">
@@ -166,10 +166,6 @@ function PreloadDemo() {
               : `✅ chunk 已就绪（用时 ${cost.toFixed(0)} ms），现在点击会瞬间打开`}
         </span>
       </div>
-      <p className="hint">
-        这是真实可用的技巧：目标路由的 chunk 就是左侧菜单里那个页面。刷新页面后先别点左侧菜单，直接把鼠标停在这个按钮上，
-        再打开 Network 面板对比一下「有没有预加载」的差别。
-      </p>
     </div>
   )
 }
@@ -281,12 +277,6 @@ export default function SplitPage() {
         tag="核心对比"
         tone="default"
         desc="左边是本文件里直接定义的组件（随本页 chunk 一起下载），右边是 React.lazy 引入的独立 chunk。"
-        points={[
-          '静态引入：点击时零等待，但用户打开这一页就已经下载了这些代码 —— 首屏体积更大、解析更慢。',
-          'lazy 引入：代码单独成一个文件，只有真正渲染时才下载；配合 Suspense，用户看到的是骨架屏而不是白屏。',
-          '右边的「实测 chunk 下载 + 执行」耗时 —— 才是真实用户会等待的时间。',
-          '判断标准：首屏必须看到的组件用静态引入；「点击/切页/弹窗才会出现」的组件用 lazy。',
-        ]}
         code={`// ❌ 首屏用不到的组件，别静态引入
 import HeavyEditor from './HeavyEditor'
 
@@ -311,12 +301,6 @@ const Editor = lazy(() =>
         tag="体验优化"
         tone="good"
         desc="鼠标悬停时就开始下载目标 chunk。用户从「悬停」到「真的点击」之间通常有 200~500ms，足够把 chunk 拉回来了。"
-        points={[
-          '原理很简单：动态 import() 的返回值会被浏览器缓存，提前调用一次就够了。',
-          '触发时机：hover / focus / touchstart（移动端没有 hover）/ 空闲时间（requestIdleCallback）。',
-          '进阶：用 React 19 的 preload API 或者 <link rel="prefetch"> 让浏览器在空闲时预取。',
-          '⚠️ 别滥用：预加载太多会让首屏带宽被抢占，反而拖慢关键资源。只预加载「用户大概率会去的下一个页面」。',
-        ]}
         codeTone="good"
         code={`// 1. 把 chunk 的加载封装成一个可复用的函数
 const loadComparePage = () => import('./ComparePage')
@@ -341,12 +325,6 @@ const ComparePage = lazy(loadComparePage)
         tag="容易被忽略的健壮性"
         tone="bad"
         desc="这个 loader 第一次必定失败（点多少次「重试」都是第一次那个状态），只有真的重试才会成功。"
-        points={[
-          'React.lazy 的 loader 抛出异常时，必须有 ErrorBoundary 接住，否则错误会一路冒泡导致整页卸载（白屏）。',
-          '为什么需要重试：一次网络抖动、或者发版后旧 chunk 已经不存在了，用户重试往往就好了。',
-          '重试的实现要点：要创建一个全新的 lazy 组件（或者重新挂载子树），React 才会重新执行 loader —— 它会记住上一次的失败状态。',
-          '再进一步：可以监听 chunk 加载失败的全局事件，提示用户「有新版本，请刷新页面」。',
-        ]}
         code={`const Chart = lazy(() => import('./Chart'))
 
 function Widget() {

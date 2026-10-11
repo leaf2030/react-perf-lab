@@ -1,5 +1,3 @@
-import { Alert, Card, Col, Row, Tag } from 'antd'
-
 /* ============================================================
    FiberTreeDiagram —— 首页开场的「React 一次更新的完整流程」
 
@@ -124,62 +122,9 @@ function Lane({ x, y, w, text, hot = false }: { x: number; y: number; w: number;
   )
 }
 
-/** 五个阶段的大白话说明 */
-const PHASES = [
-  {
-    no: '①',
-    name: '发生更新，先写一张「单子」',
-    plain: '你点了一下按钮（或者 setState、接口回来了），React 先把这次改动写成一张「单子」，再给单子贴上优先级标签。',
-    terms: ['createUpdate', 'lane 优先级'],
-    tip: '这一步是同步的，只花几微秒，几乎不可能成为瓶颈 —— 别在这儿瞎优化。',
-  },
-  {
-    no: '②',
-    name: '排队，等浏览器喘口气',
-    plain: '把活儿交给调度器排队。它用 MessageChannel 约一个空档来干活，绝不霸占主线程。',
-    terms: ['Scheduler', 'taskQueue', '小顶堆排序'],
-    tip: '这就是 React 看起来「慢半拍」的原因：它在等浏览器先处理完用户输入。',
-  },
-  {
-    no: '③',
-    name: '一格一格地算（可中断）',
-    plain: '先建一棵草稿树试算，一个节点一个节点地处理；每算完一小段就问一句「这一帧还有时间吗？」',
-    terms: ['workLoop', 'beginWork ↓ completeWork ↑', 'shouldYield()'],
-    tip: '时间用完就保存进度、让出主线程；中途来了更急的活（比如用户打字），草稿可以直接扔掉重做 —— 这就是并发渲染。',
-  },
-  {
-    no: '④',
-    name: '一口气提交（不可中断）',
-    plain: '草稿算完，真正去改 DOM 的三件小事必须连续做完，中间谁也不能插队。',
-    terms: ['before mutation', 'mutation', 'layout'],
-    tip: '这一步最贵、也最不能省。所以要尽量减少「需要提交的差异」—— memo、减少重渲染的意义正在这里。',
-  },
-  {
-    no: '⑤',
-    name: '画到屏幕上，再跑副作用',
-    plain: '浏览器把画面画出来，然后才轮到 useEffect 执行。',
-    terms: ['paint', 'useEffect'],
-    tip: 'useLayoutEffect 卡在绘制之前（会阻塞上屏），useEffect 在绘制之后（不阻塞）—— 第 07 章有现场对比。',
-  },
-]
-
 export function FiberTreeDiagram() {
   return (
     <div className="flow">
-      <Alert
-        className="flow__intro"
-        type="info"
-        showIcon
-        message="一句话版本"
-        description={
-          <>
-            一次 setState 之后：<b>打包改动</b> → <b>排队等空闲</b> → <b>一格一格地算</b>（可以中途暂停、甚至重来）→{' '}
-            <b>一口气写进 DOM</b>（不能暂停）→ <b>浏览器画出来</b>。Vue 是「一口气跑完」，React 是「随时能按暂停键」，
-            差别全在中间那两步。
-          </>
-        }
-      />
-
       <div className="flow__canvas">
         <svg viewBox="0 0 1032 676" role="img" aria-label="React 一次更新的完整流程图">
           <defs>
@@ -291,52 +236,6 @@ export function FiberTreeDiagram() {
           <Lbl x={34} y={498} text="浏览器空闲了 → 回来从断点继续" />
         </svg>
       </div>
-
-      <div className="flow__phases">
-        <div className="flow__phases-title">逐步展开：每个阶段到底在做什么（先说人话，术语只是备注）</div>
-        <Row gutter={[12, 12]}>
-          {PHASES.map((phase) => (
-            <Col xs={24} md={12} xl={8} key={phase.no}>
-              <Card
-                size="small"
-                className="flow__card"
-                title={
-                  <span className="flow__card-title">
-                    <span className="flow__card-no">{phase.no}</span>
-                    {phase.name}
-                  </span>
-                }
-              >
-                <p className="flow__card-plain">{phase.plain}</p>
-                <div className="flow__card-terms">
-                  {phase.terms.map((term) => (
-                    <Tag key={term} color="blue" variant="filled">
-                      {term}
-                    </Tag>
-                  ))}
-                </div>
-                <p className="flow__card-tip">
-                  <b>要点：</b>
-                  {phase.tip}
-                </p>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </div>
-
-      <Alert
-        className="flow__outro"
-        type="warning"
-        showIcon
-        message="所以优化的重点在哪？"
-        description={
-          <>
-            红色那段（提交）不能暂停也省不掉，蓝色那段（计算）可以暂停但工作量还在。真正的省法只有一个：
-            <b>让需要计算和提交的节点变少</b> —— memo、状态下沉、虚拟化、缓存，全都是干这一件事。
-          </>
-        }
-      />
     </div>
   )
 }

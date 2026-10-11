@@ -408,12 +408,6 @@ export default function ConcurrentPage() {
         tag="最高频的使用场景"
         tone="good"
         desc="5000 条数据筛选 + 一个固定 60ms 的慢列表。切换两种策略，快速打字感受区别。"
-        points={[
-          '慢的是「列表」，快的是「输入框」。我们要做的是让两者解耦。',
-          'useDeferredValue 返回一个「滞后版本」的值：第一次渲染用旧值（不阻塞输入），随后 React 会在空闲时用新值再渲染一次。',
-          '它不是 debounce：没有固定延时，React 会在空闲的第一时间把新值补上，节奏跟着渲染压力走。',
-          '这个 Demo 里 SlowList 必须是 memo 的，否则每次输入都会重渲染它，deferred 也就白做了。',
-        ]}
         codeTone="good"
         code={`function Search() {
   const [keyword, setKeyword] = useState('')
@@ -439,12 +433,6 @@ export default function ConcurrentPage() {
         tag="切换、筛选、路由跳转"
         tone="good"
         desc="切换到一个渲染耗时 120ms 的标签页。开关决定这次更新是不是低优先级。"
-        points={[
-          'startTransition 里的更新是「可中断」的：如果用户又点了别的按钮，这次渲染会被丢弃，不会白干。',
-          'isPending 是它的配套能力：旧界面保持可交互 + 一个 loading 提示，体验比「整页冻结」好得多。',
-          '区别于 Suspense：Suspense 是「数据没到 → 显示 fallback」；transition 是「数据有了，但渲染很慢 → 先保持旧界面」。',
-          '注意：如果这次更新是由用户输入触发的（受控输入），不要用 startTransition 包，否则输入框会变慢 —— 那种场景用 useDeferredValue。',
-        ]}
         codeTone="good"
         code={`const [isPending, startTransition] = useTransition()
 
@@ -474,15 +462,6 @@ return (
         tag="API（必讲）"
         tone="bad"
         desc="两个 effect 长得几乎一样，区别只在「什么时候执行」。而这一点差异，直接决定了用户会不会看到闪烁。"
-        points={[
-          '执行时机：useLayoutEffect 在 DOM 更新后、浏览器绘制前同步执行；useEffect 在绘制之后异步执行。',
-          '所以「读取布局 → 立刻写样式」这类操作必须用 useLayoutEffect，否则用户会看到中间态（闪一下）。',
-          '但 useLayoutEffect 是同步阻塞绘制的：里面做重活，页面会一直白屏 / 卡住。这个 Demo 故意放了 30ms，能明显感到延迟。',
-          '默认选择永远是 useEffect；只有"必须在绘制前同步改 DOM"时才换成 useLayoutEffect。',
-          '两者都要返回清理函数（取消订阅、清定时器），否则重复执行会累积副作用。',
-          'React 在服务端渲染（SSR）时会忽略 useLayoutEffect 并打印警告（因为服务端没有 DOM、也没有"绘制"），这是选型时要考虑的一点。',
-          '⚠️ Vue 对照：不要以为 useLayoutEffect 对应 nextTick。nextTick 等的是"DOM 更新完成"（相当于绘制前），而 useEffect 等的是"绘制之后"—— 所以 nextTick 的时机更接近 useLayoutEffect。这是从 Vue 过来最容易搞混的一处。',
-        ]}
         codeTone="good"
         code={`// ❌ useEffect：绘制之后才改样式 → 用户先看到旧位置，再看到跳动
 useEffect(() => {
@@ -509,14 +488,6 @@ useEffect(() => {
         title="Demo 4｜flushSync：主动放弃并发特性的反面教材"
         tone="bad"
         desc="它能让你「更新完立刻读到新 DOM」，代价是这次更新彻底失去并发能力。"
-        points={[
-          'flushSync 强制这次更新同步渲染并立刻提交到 DOM —— 相当于临时退回 React 17 的同步模式。',
-          '唯一合理的用途：必须在同一个事件回调里「先写完、再读 DOM」的场景（测量后定位、滚动到指定节点、同步第三方库尺寸）。',
-          '副作用一：这次更新不能被中断，也无法被打断优先级 —— 页面上正在做的并发优化对它无效。',
-          '副作用二：它会拆掉批处理，一次逻辑里多个 setState 可能变成多次渲染。',
-          '替代方案优先考虑 useLayoutEffect：它同样能在"绘制前"读到最新 DOM，但不破坏并发调度。',
-          '如果非用不可，把范围包到最小：只包必须同步的那一次更新，不要整个事件处理函数都包进去。',
-        ]}
         codeTone="good"
         code={`// ❌ 用 flushSync 只是为了"更新后立刻读 DOM"
 function handleClick() {

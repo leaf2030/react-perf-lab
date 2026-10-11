@@ -342,12 +342,6 @@ export function UserCard() {
         tag="头号迁移坑"
         tone="bad"
         desc="点「直接 push」多次，界面纹丝不动；再点「不可变更新」，之前偷偷改的数据会一次性冒出来。"
-        points={[
-          'Vue 里 `items.value.push(x)` 就会更新视图；React 里必须调用 setItems 并传入一个新引用。',
-          'React 用 Object.is 判断 state 有没有变 —— 引用不变就直接 bailout，连渲染都不会发生。',
-          '图中「幽灵数据」现象是线上最难查的 bug 之一：数据早就变了，只是 React 不知道，等某个无关的更新触发重渲染时突然显示出来。',
-          '正确姿势：对象用 {...obj, field: value}，数组用 [...arr, x] / arr.filter / arr.map，或者引入 immer 这类库。',
-        ]}
         code={`const [user, setUser] = useState({ name: '张三', city: '北京' })
 
 // ❌ 直接改属性 —— 引用没变，React 不会更新

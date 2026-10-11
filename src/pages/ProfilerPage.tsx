@@ -242,12 +242,6 @@ export default function ProfilerPage() {
         tag="动手环节"
         tone="default"
         desc="两个子树内容完全相同，都渲染三张「很贵」的卡片。唯一区别是右边用了 memo + 稳定 props。点几次按钮看数字。"
-        points={[
-          '每次点击都会触发一次「父组件重渲染」：左边的三张卡片全部重渲染，右边的被 memo 挡住了。',
-          'baseDuration 是最有说服力的指标：它代表"如果不做任何记忆化，这次渲染要花多久"。',
-          '第一次渲染（phase = mount）两边都很慢，这是正常的 —— mount 本来就要创建整个 DOM 树。',
-          '真实的排查流程：先用 DevTools 找到最贵的组件 → 判断它「为什么渲染」→ 选择 memo / 状态下沉 / children 插槽 → 再用 Profiler 对比数字。',
-        ]}
         code={`import { Profiler } from 'react'
 
 // onRender 签名（6 个参数）

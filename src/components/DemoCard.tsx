@@ -6,8 +6,6 @@ type Props = {
   tag?: string
   /** 一句话说明这个 demo 要证明什么 */
   desc?: ReactNode
-  /** 讲解要点 */
-  points?: string[]
   code?: string
   codeTone?: 'default' | 'good' | 'bad'
   tone?: 'default' | 'bad' | 'good'
@@ -18,7 +16,6 @@ export function DemoCard({
   title,
   tag,
   desc,
-  points,
   code,
   codeTone = 'default',
   tone = 'default',
@@ -32,16 +29,6 @@ export function DemoCard({
       </header>
       {desc ? <p className="demo__desc">{desc}</p> : null}
       {children ? <div className="demo__body">{children}</div> : null}
-      {points && points.length > 0 ? (
-        <div className="demo__points">
-          <span className="demo__points-title">🎤 讲解要点</span>
-          <ul>
-            {points.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
       {code ? <CodeBlock code={code} tone={codeTone} title="示例代码" /> : null}
     </section>
   )

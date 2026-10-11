@@ -318,11 +318,6 @@ export default function ContextPage() {
         tag="问题现场"
         tone="bad"
         desc="点赞按钮只改了 count，但 UserCard 和 ThemeCard 也跟着重渲染了。"
-        points={[
-          '三个消费者读的是同一个 Context，任何一个字段变化，它们都会收到通知。',
-          '更坑的是：如果 value 是内联对象甚至每次都新建，即便 state 没变，消费者也会全部重渲染（见 Demo 4）。',
-          '在小项目里这个问题不明显，一旦 Context 里放了 "鼠标位置""滚动进度""表单输入"这种高频值，页面就会整体卡顿。',
-        ]}
         code={`const AppContext = createContext(null)
 
 function Provider({ children }) {
@@ -350,11 +345,6 @@ function Provider({ children }) {
         tag="最简单的优化"
         tone="good"
         desc="把一个大 Context 按「变化频率」拆成几个小 Context，消费者各订阅各的。"
-        points={[
-          '拆分维度：按「变化频率」拆（高频的和低频的不要放一起），而不是按业务模块拆。',
-          '把不变的 dispatch / setter 单独放一个 Context（它们引用稳定，永远不会触发重渲染）。',
-          '代价：嵌套的 Provider 变多了，组件树会变深一点，但收益通常值得。',
-        ]}
         codeTone="good"
         code={`const UserContext = createContext('')
 const ThemeContext = createContext('dark')
@@ -391,12 +381,6 @@ const count = useContext(CountContext)`}
         tag="大规模状态的正解"
         tone="good"
         desc="状态放在 React 之外，组件通过 selector 只订阅自己关心的字段 —— 这就是 zustand / jotai 的原理。"
-        points={[
-          'useSyncExternalStore 是 React 18 提供的官方 API，专门用来订阅 React 之外的数据源。',
-          '状态更新时直接调用 store 的 setter，不经过任何「父组件」，所以不会有大范围的重渲染。',
-          '⚠️ selector 必须返回稳定值：返回新对象会导致「getSnapshot 结果不稳定」的无限循环警告，需要配合 shallow 比较或拆成多次选择。',
-          '什么时候上外部 store：跨页面共享、更新频繁、订阅者很多（比如表格列配置、播放器状态、全局通知）。',
-        ]}
         codeTone="good"
         code={`import { useSyncExternalStore } from 'react'
 
@@ -421,11 +405,6 @@ const { count } = useStoreSelector(store, (s) => ({ count: s.count }))`}
         tag="最常见的低级错误"
         tone="bad"
         desc="两个 Wrapper 内部都有会变的 state，唯一的区别是传给 Provider 的 value 有没有用 useMemo 固定。"
-        points={[
-          'Provider 只要重渲染，内联的 value 就是新对象，Object.is 比较失败 → 消费者全部重渲染。',
-          '这是「我明明没改数据，为什么子组件一直渲染」的常见原因之一。',
-          '注意：value 里如果包含每次新建的对象/函数（比如 value={{ list: [], onSelect: () => {} }}），useMemo 也救不了，依赖必须稳定。',
-        ]}
         code={`// ❌ 每次渲染都是新对象
 <Ctx.Provider value={{ theme }}>
 

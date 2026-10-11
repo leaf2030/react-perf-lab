@@ -267,13 +267,7 @@ export default function ListPage() {
         title="Demo 1｜朴素实现：有多少条数据就渲染多少个节点"
         tag="问题现场"
         tone="bad"
-        desc="点不同的数据量，看两个指标：真实 DOM 节点数、渲染+提交耗时。请谨慎点击 50,000 条。"
-        points={[
-          'DOM 节点数和数据量是 1:1 的，耗时也线性增长。',
-          '这一类卡顿是「一次性的」，但滚动时的掉帧是「持续的」—— 用户感受更差。',
-          '有些人会先想到用 memo 优化行组件，但行组件的 props 其实没变，memo 帮不上忙：瓶颈在节点数量。',
-          '分页也是一种解法：把"一次性渲染 5 万条"变成"每页 50 条"。虚拟化是"要保留连续滚动体验"时的方案。',
-        ]}
+        desc="点不同的数据量，看两个指标：真实 DOM 节点数、渲染+提交耗时。"
         code={`// 朴素做法：数据有多少，就渲染多少
 function List({ items }) {
   return (
@@ -293,12 +287,6 @@ function List({ items }) {
         tag="核心方案"
         tone="good"
         desc="滚动一下右侧列表，观察「真实 DOM 节点数」和「当前渲染区间」这两个指标。"
-        points={[
-          '三步走：① 用一个"撑高"的内层 div 撑出总高度（count × 行高），滚动条才正常；② 监听 scrollTop 算出可视区间；③ 只把这个区间（加 overscan 缓冲）的行用绝对定位渲染出来。',
-          'overscan 是上下多渲染几行，避免快速滚动时出现白屏，一般 3~10 行。',
-          '行组件要用 memo + 稳定的 key，否则滚动一次整个可见区都在重渲染。',
-          '动态行高要复杂一些（需要测量每一行），生产环境建议直接用 TanStack Virtual 这类库。',
-        ]}
         codeTone="good"
         code={`function useVirtualRange(count, scrollTop, overscan) {
   const first = Math.floor(scrollTop / ROW_HEIGHT)
@@ -332,12 +320,6 @@ function VirtualList({ items }) {
         tag="实战细节"
         tone="default"
         desc="虚拟化解决了渲染，但筛选依然要遍历全量数据 —— 这时候该 useMemo 出场了。"
-        points={[
-          'filter 的成本是 O(n)，5 万条大约几毫秒，但每次按键都做就会累积成卡顿 → 用 useMemo 限制在 keyword 变化时。',
-          '筛选后要重置 scrollTop，否则用户会看到"空列表"（其实是滚到了超出范围的位置）。',
-          '数据量再大一个量级（几十万），就要考虑后端搜索 / 索引 / Web Worker 异步计算。',
-          '如果输入框本身开始卡，就该上第 07 章的 useDeferredValue 了。',
-        ]}
         code={`// 筛选 + 虚拟化组合
 const filtered = useMemo(() => {
   const key = keyword.trim().toLowerCase()

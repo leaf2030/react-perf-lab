@@ -306,12 +306,7 @@ export default function RerenderPage() {
         title="Demo 1｜输入框一打字，整棵子树都在重渲染"
         tag="问题现场"
         tone="bad"
-        desc="注意 SalesChart / OrderTable 和输入框毫无关系，却每次都跟着渲染。把顶栏的模拟耗时调到 10ms，打字会明显粘手。"
-        points={[
-          'React 没有像 Vue 那样的细粒度依赖追踪，父组件一渲染，默认会递归渲染所有子组件。',
-          '卡顿的本质：输入 → setState → 重渲染一大棵树 → 浏览器主线程被占满 → 输入框掉帧。',
-          '先用 React DevTools 的 Highlight updates 展示这个现象，再进入优化。',
-        ]}
+        desc="SalesChart / OrderTable 和输入框毫无关系，却每次都跟着渲染。"
         code={`function Parent() {
   const [text, setText] = useState('')
 
@@ -334,11 +329,6 @@ export default function RerenderPage() {
         tag="第一层优化"
         tone="good"
         desc="右边套一层 memo 就够了，因为它的 props 是原始类型。"
-        points={[
-          'memo 做的是浅比较（Object.is）：props 里每个字段的引用都没变，才跳过渲染。',
-          'memo 只挡「父组件重渲染」这一种情况，挡不住自己的 state 和消费的 Context。',
-          'memo 也有成本（要保存并比较上一次的 props），对渲染很轻的组件反而是负担 —— 优先给「渲染贵」的组件加。',
-        ]}
         codeTone="good"
         code={`// ✅ props 是原始类型，memo 效果最好
 const SalesChart = memo(function SalesChart({ title }: { title: string }) {
@@ -361,12 +351,6 @@ const onPick = useCallback(() => {}, [])
         tag="高频坑"
         tone="bad"
         desc="左右两个子组件都用了 memo，但只有右边真正生效。"
-        points={[
-          'JSX 里写 config={{ theme: "dark" }} 或 onClick={() => {}}，每次渲染都会创建新引用。',
-          '浅比较只看引用，不看内容，所以 memo 直接失效 —— 这是「加了 memo 却没效果」的第一大原因。',
-          '解法：把对象/函数用 useMemo / useCallback 包起来，或者把它们移到组件外部（模块级常量）。',
-          '排查技巧：React DevTools 里看这个组件的 props 为什么每次都变，一目了然。',
-        ]}
         code={`// ❌ 每次渲染都是新对象 + 新函数 → memo 白加
 <MemoChild config={{ theme: 'dark' }} onSelect={() => setSelected(id)} />
 
@@ -387,11 +371,6 @@ const CONFIG = { theme: 'dark' }
         tag="进阶技巧"
         tone="good"
         desc="把「不依赖当前 state 的子树」当作 children 传进去，它在父组件重渲染时不会重新渲染。"
-        points={[
-          'React 元素的引用没变时，React 会直接复用上一次的渲染结果（bailout）。',
-          '这是一种「不用测 props 也能优化」的组件组合模式，在布局组件、Provider、表单容器里特别常用。',
-          '实战意义：把频繁变化的状态关在一个小组件里（状态下沉），把静态子树通过 children 传进去。',
-        ]}
         codeTone="good"
         code={`// ❌ 静态子树写在里面，跟着 Shell 一起重渲染
 function Shell() {
@@ -428,11 +407,6 @@ function Shell({ children }: { children: ReactNode }) {
         tag="机制补充"
         tone="default"
         desc="改变 key 会让 React 认为这是一个全新的组件：旧组件被卸载、新组件被挂载，内部 state 全部丢失。"
-        points={[
-          'key 变了 → 卸载 + 重新挂载：DOM 重建、useState 重置、useEffect 重新执行。',
-          'key 不变 → 复用：state 保留，只更新变化的 props。',
-          '两个用法：① 用它重置组件状态（本项目顶栏的「重置计数」）；② 列表会增删改排序时，不要用 index 当 key（下一章演示）。',
-        ]}
         code={`// 用 key 强制重置：不想手写 reset 逻辑时非常好用
 <ProfileForm key={userId} userId={userId} />
 
