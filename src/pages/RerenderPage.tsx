@@ -113,6 +113,7 @@ function UnstablePropsDemo() {
   // ✅ useMemo / useCallback 保证引用恒定：只创建一次，之后反复复用同一个
   const stableConfig = useMemo(() => ({ theme: 'dark', token: nextToken() }), [])
   const stableSelect = useCallback(() => console.info('点的是「稳定」那一行'), [])
+   const stableSelect2 = useCallback(() => console.info('点的是「稳定」那一行2'), [tick])
 
   return (
     <div className="stack">
@@ -135,6 +136,7 @@ function UnstablePropsDemo() {
             ✅ useMemo / useCallback 固定引用
           </p>
           <MemoChild tag="memo + 稳定 props" config={stableConfig} onSelect={stableSelect} />
+          {/* <MemoChild tag="memo + 稳定 props 2" config={stableConfig} onSelect={stableSelect2} /> */}
         </div>
       </div>
 
