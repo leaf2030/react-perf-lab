@@ -467,14 +467,38 @@ a:hover {
   color: var(--text);
 }
 
+/* good / bad 面板：左侧粗色条 + 语义色边框，一眼分清，不靠浅背景猜 */
+.panel--good,
+.panel--bad {
+  position: relative;
+  overflow: hidden;
+  padding-left: 28px;
+}
+
+.panel--good::before,
+.panel--bad::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+}
+
 .panel--good {
-  border-color: var(--success-border);
+  border-color: var(--success);
   background: var(--success-bg);
 }
 
+.panel--good::before {
+  background: var(--success);
+}
+
 .panel--bad {
-  border-color: var(--error-border);
+  border-color: var(--error);
   background: var(--error-bg);
+}
+
+.panel--bad::before {
+  background: var(--error);
 }
 
 /* 面板内的子卡片要保持白底，避免嵌套时糊成一片 */
@@ -483,6 +507,15 @@ a:hover {
 .panel--good .demo,
 .panel--bad .demo {
   background: var(--bg-container);
+}
+
+/* 面板标题也带上语义色，进一步强化区分 */
+.panel--good > .panel__title {
+  color: #389e0d;
+}
+
+.panel--bad > .panel__title {
+  color: var(--error);
 }
 
 /* ---------- 代码块 ---------- */
@@ -870,6 +903,23 @@ input[type='range'] {
   border-radius: var(--radius-lg);
   background: var(--fill-quaternary);
   border: 1px solid var(--border-secondary);
+  border-left-width: 3px;
+}
+
+/* 语义色 stat：左侧色条 + 浅色底，和面板色条呼应 */
+.stat--good {
+  border-left-color: var(--success);
+  background: var(--success-bg);
+}
+
+.stat--bad {
+  border-left-color: var(--error);
+  background: var(--error-bg);
+}
+
+.stat--warn {
+  border-left-color: var(--warning);
+  background: var(--warning-bg);
 }
 
 .stat__label {
@@ -1345,6 +1395,43 @@ input[type='range'] {
 
 .checklist li::marker {
   color: var(--primary);
+}
+
+/* ---------- Demo 4：大量真实 DOM 实例的列表 ---------- */
+
+.perf-list {
+  margin-top: 12px;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--fill-quaternary);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.perf-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.perf-item__index {
+  color: var(--text-dim);
+}
+
+.perf-item__value {
+  color: var(--primary);
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {

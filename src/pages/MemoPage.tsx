@@ -167,24 +167,68 @@ function MemoCompareDemo() {
 
 /* ---------- Demo 2：useCallback 的真正作用（引用稳定） ---------- */
 
-// React.memo 子组件：只有 props 变化时才重渲染
-const MemoChild = memo(function MemoChild({
-  label,
-  onAction,
-}: {
-  label: string
-  onAction: () => void
-}) {
-  const renders = useRenderCount(label)
-  return (
-    <div className="heavy">
-      <RenderBadge name={label} count={renders} />
-      <button type="button" className="btn" onClick={onAction}>
-        点我触发回调
-      </button>
-    </div>
-  )
-})
+// 给每个函数引用分配一个稳定的编号，用来在界面上直观展示"引用有没有变"。
+// 同一个函数对象 → 同一个编号；每次新建函数 → 编号 +1。
+let fnIdSeed = 0
+const fnIds = new WeakMap<() => void, number>()
+function fnId(fn: () => void): number {
+  let id = fnIds.get(fn)
+  if (id === undefined) {
+    fnIdSeed += 1
+    id = fnIdSeed
+    fnIds.set(fn, id)
+  }
+  return id
+}
+
+// React.memo 子组件：只有 props 变化时才重渲染。
+// ⚠️ memo 没有 useMemo 那样的依赖数组，它的第二个参数是「自定义比较函数」：
+//    (prevProps, nextProps) => boolean，返回 true 表示"相等，跳过重渲染"。
+//    下面把要比较的 props 显式列出来，等价于"依赖 = [label, onAction]"。
+const MemoChild = memo(
+  function MemoChild({
+    label,
+    onAction,
+  }: {
+    label: string
+    onAction: () => void
+  }) {
+    const renders = useRenderCount(label)
+
+    // 记录上一次收到的 onAction 引用，用来判断这次引用是否变了
+    const prevAction = useRef(onAction)
+    const actionChanged = prevAction.current !== onAction
+    prevAction.current = onAction
+
+    return (
+      <div className="heavy">
+        <RenderBadge name={label} count={renders} />
+        <div className="stack" style={{ gap: 4, margin: '8px 0' }}>
+          <span className="hint">
+            props.label = <code>"{label}"</code> <span style={{ color: 'var(--good)' }}>（值没变 ✅）</span>
+          </span>
+          <span className="hint">
+            props.onAction 引用 = <code>#{fnId(onAction)}</code>{' '}
+            {actionChanged ? (
+              <span style={{ color: 'var(--bad)' }}>（变了 ❌ → memo 判定 props 变了）</span>
+            ) : (
+              <span style={{ color: 'var(--good)' }}>（没变 ✅）</span>
+            )}
+          </span>
+        </div>
+        <button type="button" className="btn" onClick={onAction}>
+          点我触发回调
+        </button>
+      </div>
+    )
+  },
+  // 👇 显式写出 memo 的"依赖"：只有这两个 props 都相等时才跳过重渲染
+  (prevProps, nextProps) => {
+    const labelSame = prevProps.label === nextProps.label
+    const actionSame = prevProps.onAction === nextProps.onAction
+    return labelSame && actionSame
+  },
+)
 
 function UseCallbackDemo() {
   const [tick, setTick] = useState(0)
@@ -207,21 +251,24 @@ function UseCallbackDemo() {
           <h4 className="panel__title">❌ 内联箭头函数：每次都是新引用</h4>
           <MemoChild label="内联箭头函数" onAction={() => console.info('❌ [内联] 回调触发')} />
           <span className="hint">
-            onAction 每次渲染都是新函数 → React.memo 认为 props 变了 → 子组件白白重渲染。
+            父组件每渲染一次，<code>onAction</code> 就是一个全新的函数对象（引用编号不断 +1）→
+            memo 浅比较发现 props 变了 → 子组件白白重渲染。
           </span>
         </div>
         <div className="panel panel--good">
           <h4 className="panel__title">✅ useCallback 包裹：引用稳定</h4>
           <MemoChild label="useCallback 包裹" onAction={stableHandler} />
           <span className="hint">
-            onAction 引用不变 → React.memo 生效 → 父组件重渲染时子组件纹丝不动。
+            <code>onAction</code> 始终是同一个函数对象（引用编号永远是 #1）→
+            memo 浅比较发现 props 没变 → 子组件纹丝不动。
           </span>
         </div>
       </div>
 
       <p className="hint">
-        反复点「让父组件重渲染」：左边子组件的渲染次数不断上涨（React.memo 被新函数引用击穿），
-        右边始终停在 1。这就是 useCallback 的真正价值 —— <b>它本身不阻止重渲染，而是让引用稳定，从而让 React.memo 生效</b>。
+        反复点「让父组件重渲染」，盯着两个子组件里的 <b>props.onAction 引用编号</b>：
+        左边每次都在变（memo 被新函数引用击穿），右边始终是同一个编号。
+        这就是 useCallback 的真正价值 —— <b>它本身不阻止重渲染，而是让引用稳定，从而让 React.memo 生效</b>。
       </p>
     </div>
   )
@@ -290,80 +337,248 @@ function StaleClosureDemo() {
 
 /* ---------- Demo 4：缓存的成本可能比计算本身还高 ---------- */
 
-type BenchRow = { name: string; direct: number; cached: number; ratio: number }
+// 昂贵计算：循环 100 万次，肉眼可见地卡一下。
+// 注意：这里用取模把结果压回小范围，避免累加溢出成 Infinity / NaN。
+function expensiveCalc(a: number, b: number): number {
+  let sum = 0
+  for (let i = 0; i < 1_000_000; i += 1) {
+    sum = (sum + (i % 7) * a + b) % 1_000_000_007
+  }
+  return sum
+}
 
-function MemoCostDemo() {
-  const [rows, setRows] = useState<BenchRow[]>([])
+// 廉价计算：一行就能算完，几乎不花时间。
+function cheapCalc(a: number, b: number): number {
+  return a * 2 + b
+}
 
-  function run() {
-    const N = 500_000
+// 通用对照组件：传入"计算函数"和"是否用 useMemo"，自动统计累计次数与耗时。
+// 用于第一组「昂贵计算」的对照。
+function CalcPanel({
+  title,
+  tone,
+  calc,
+  a,
+  b,
+  useCache,
+}: {
+  title: string
+  tone: 'good' | 'bad'
+  calc: (a: number, b: number) => number
+  a: number
+  b: number
+  useCache: boolean
+}) {
+  const renders = useRenderCount(title)
+  const stats = useRef({ calls: 0, calcTotal: 0 })
 
-    const t0 = performance.now()
-    let sumA = 0
-    for (let i = 0; i < N; i += 1) {
-      sumA += i * 2 + 1 // 极廉价的计算
-    }
-    const direct = performance.now() - t0
-
-    const t1 = performance.now()
-    const cache = new Map<number, number>()
-    let sumB = 0
-    for (let i = 0; i < N; i += 1) {
-      const hit = cache.get(i)
-      if (hit !== undefined) {
-        sumB += hit
-      } else {
-        const value = i * 2 + 1
-        cache.set(i, value)
-        sumB += value
-      }
-    }
-    const cached = performance.now() - t1
-
-    setRows([
-      {
-        name: `直接计算 ${N.toLocaleString()} 次`,
-        direct,
-        cached,
-        ratio: cached / Math.max(direct, 0.01),
-      },
-    ])
-
-    // 防止两个循环被优化掉
-    if (sumA + sumB === -1) console.info('never')
+  function runCalc(): number {
+    const started = performance.now()
+    const result = calc(a, b)
+    const cost = performance.now() - started
+    stats.current.calls += 1
+    stats.current.calcTotal += cost
+    return result
   }
 
-  const row = rows[0]
+  // 用 useMemo 时依赖 [a, b]；不用时每次渲染都重算。
+  const value = useCache ? useMemo(runCalc, [a, b]) : runCalc()
+
+  return (
+    <div className={`panel panel--${tone}`}>
+      <h4 className="panel__title">{title}</h4>
+      <RenderBadge name={title} count={renders} />
+      <div className="stat-grid">
+        <div className="stat">
+          <span className="stat__label">计算结果</span>
+          <span className="stat__value">{value}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">累计计算次数</span>
+          <span className={`stat__value stat--${tone}`}>{stats.current.calls}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">累计计算耗时</span>
+          <span className={`stat__value stat--${tone}`}>{stats.current.calcTotal.toFixed(1)} ms</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ============================================================
+   方案 C：用「确定性计数」把 useMemo 的成本摆到台面上
+   ------------------------------------------------------------
+   为什么不用耗时？
+     单个 useMemo 的开销只有纳秒级，测不出来；就算挂 N 个，
+     总耗时也会被 DOM 操作、浏览器调度、performance.now() 的
+     测量噪声（±几毫秒）淹没 —— 数字忽高忽低，反而看不出规律。
+
+   所以这里不比"谁快谁慢"，而是数清楚 useMemo 到底多做了什么：
+     - 创建了多少个闭包 () => cheapCalc(a, b) + i
+     - 分配了多少个依赖数组 [a, b, i]
+     - 挂载了多少个 hook
+   这些数字是确定的、可数的、无噪声的。
+
+   下面渲染 N 个列表项，每项都做一次「廉价计算」：
+     - 左边：每项直接算（无 hook）
+     - 右边：每项用 useMemo 包起来（N 个 hook）
+   两边计算量完全相同，唯一差别就是 useMemo 的"缓存成本"。
+   ============================================================ */
+
+const LIST_SIZE = 5000
+
+// 列表项共用的嵌套 DOM 结构：div > span + span
+function ItemShell({ index, value }: { index: number; value: number }) {
+  return (
+    <div className="perf-item">
+      <span className="perf-item__index">#{index}</span>
+      <span className="perf-item__value">{value}</span>
+    </div>
+  )
+}
+
+// 左边：单个列表项，直接算，不用任何 hook
+function PlainItem({ a, b, i }: { a: number; b: number; i: number }) {
+  return <ItemShell index={i} value={cheapCalc(a, b) + i} />
+}
+
+// 右边：单个列表项，用 useMemo 包起来（每个实例 = 一个 hook）
+function MemoItem({ a, b, i }: { a: number; b: number; i: number }) {
+  const value = useMemo(() => cheapCalc(a, b) + i, [a, b, i])
+  return <ItemShell index={i} value={value} />
+}
+
+// 左边：N 个列表项，每项直接算，不用任何 hook
+function PlainList({ a, b }: { a: number; b: number }) {
+  const renders = useRenderCount('直接算·列表')
+
+  const items = []
+  for (let i = 0; i < LIST_SIZE; i += 1) {
+    items.push(<PlainItem key={i} a={a} b={b} i={i} />)
+  }
+
+  return (
+    <div className="panel panel--good">
+      <h4 className="panel__title">✅ 直接算：{LIST_SIZE} 项，无 hook</h4>
+      <RenderBadge name="直接算·列表" count={renders} />
+      <div className="stat-grid">
+        <div className="stat">
+          <span className="stat__label">计算次数</span>
+          <span className="stat__value stat--good">{LIST_SIZE}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">创建的闭包</span>
+          <span className="stat__value stat--good">0</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">分配的依赖数组</span>
+          <span className="stat__value stat--good">0</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">挂载的 hook</span>
+          <span className="stat__value stat--good">0</span>
+        </div>
+      </div>
+      <p className="hint">计算量 = {LIST_SIZE} 次 a*2+b（与右边完全相同）</p>
+      <div className="perf-list">{items}</div>
+    </div>
+  )
+}
+
+// 右边：N 个列表项，每项都用 useMemo 包起来（N 个 hook 实例）
+function MemoList({ a, b }: { a: number; b: number }) {
+  const renders = useRenderCount('useMemo·列表')
+
+  const items = []
+  for (let i = 0; i < LIST_SIZE; i += 1) {
+    // 每一项都是一个独立组件，内部各挂一个 useMemo —— 这就是"缓存成本"的来源
+    items.push(<MemoItem key={i} a={a} b={b} i={i} />)
+  }
+
+  return (
+    <div className="panel panel--bad">
+      <h4 className="panel__title">❌ useMemo：{LIST_SIZE} 项，{LIST_SIZE} 个 hook</h4>
+      <RenderBadge name="useMemo·列表" count={renders} />
+      <div className="stat-grid">
+        <div className="stat">
+          <span className="stat__label">计算次数</span>
+          <span className="stat__value stat--bad">{LIST_SIZE}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">创建的闭包</span>
+          <span className="stat__value stat--bad">{LIST_SIZE}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">分配的依赖数组</span>
+          <span className="stat__value stat--bad">{LIST_SIZE}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">挂载的 hook</span>
+          <span className="stat__value stat--bad">{LIST_SIZE}</span>
+        </div>
+      </div>
+      <p className="hint">计算量 = {LIST_SIZE} 次 a*2+b（与左边完全相同）</p>
+      <div className="perf-list">{items}</div>
+    </div>
+  )
+}
+
+function MemoCostDemo() {
+  const [a, setA] = useState(1)
+  const [b, setB] = useState(2)
+  const [unrelated, setUnrelated] = useState(0)
 
   return (
     <div className="stack">
       <div className="row">
-        <button type="button" className="btn btn--primary" onClick={run}>
-          跑一次微基准测试
+        <button type="button" className="btn btn--primary" onClick={() => setUnrelated((v) => v + 1)}>
+          只让父组件重渲染（a、b 都不变）：{unrelated}
         </button>
-        <span className="hint">500,000 次 a = i * 2 + 1 的对比</span>
+        <button type="button" className="btn" onClick={() => setA((v) => v + 1)}>
+          改 a（依赖真的变了）：{a}
+        </button>
+        <button type="button" className="btn" onClick={() => setB((v) => v + 1)}>
+          改 b（依赖真的变了）：{b}
+        </button>
       </div>
 
-      {row ? (
-        <div className="stat-grid">
-          <div className="stat">
-            <span className="stat__label">直接计算</span>
-            <span className="stat__value stat--good">{row.direct.toFixed(1)} ms</span>
-          </div>
-          <div className="stat">
-            <span className="stat__label">加一层 Map 缓存</span>
-            <span className="stat__value stat--bad">{row.cached.toFixed(1)} ms</span>
-          </div>
-          <div className="stat">
-            <span className="stat__label">慢了</span>
-            <span className="stat__value stat--bad">≈ {row.ratio.toFixed(1)} 倍</span>
-          </div>
-        </div>
-      ) : null}
+      {/* 第一组：昂贵计算 —— useMemo 收益巨大 */}
+      <h4 className="panel__title" style={{ marginTop: 8 }}>
+        ① 昂贵计算（100 万次循环）：useMemo 收益巨大 ✅
+      </h4>
+      <div className="grid-2">
+        <CalcPanel title="昂贵·直接算" tone="bad" calc={expensiveCalc} a={a} b={b} useCache={false} />
+        <CalcPanel title="昂贵·useMemo" tone="good" calc={expensiveCalc} a={a} b={b} useCache />
+      </div>
+
+      {/* 第二组：廉价计算 —— 用大量真实 DOM 实例放大 useMemo 的真实开销 */}
+      <h4 className="panel__title" style={{ marginTop: 8 }}>
+        ② 廉价计算 × {LIST_SIZE} 项（真实 DOM）：useMemo 反而亏 ❌
+      </h4>
+      <div className="grid-2">
+        <PlainList a={a} b={b} />
+        <MemoList a={a} b={b} />
+      </div>
 
       <p className="hint">
-        这不是严谨的性能测试，只是想说明一件事：<b>缓存本身要花时间</b>（建对象、比对依赖、存上一次的结果）。
-        给「一行代码就能算完」的东西加 useMemo，很可能是在给自己减速。
+        反复点「只让父组件重渲染」，对比第二组两张卡片的 <b>「创建的闭包 / 依赖数组 / hook」</b>：
+      </p>
+      <ul className="checklist">
+        <li>
+          <b>① 昂贵计算</b>：左边每次都重跑 100 万次循环，耗时飙升；右边依赖没变直接复用 ——
+          <b>useMemo 净赚</b>。
+        </li>
+        <li>
+          <b>② 廉价计算 × {LIST_SIZE} 项</b>：两边计算量<b>完全相同</b>（都是 {LIST_SIZE} 次 a*2+b），
+          但右边额外创建了 <b>{LIST_SIZE} 个闭包</b>、<b>{LIST_SIZE} 个依赖数组</b>、<b>{LIST_SIZE} 个 hook</b>。
+          这些就是「缓存成本」—— 它和计算量无关，只和实例数量成正比。
+          <b>计算越廉价，这笔成本占比越大，越不划算</b>。
+        </li>
+      </ul>
+      <p className="hint">
+        结论：<b>计算越贵，useMemo 越值得用；计算越廉价，越不该用</b>。
+        判断标准不是"要不要缓存"，而是"计算本身值不值得缓存"。
       </p>
     </div>
   )
@@ -425,10 +640,23 @@ const result = useMemo(() => filterAndSort(items, keyword), [items, keyword])`}
         tone="good"
         desc="很多人问「我加了 useCallback 怎么还是重渲染」。答案是：useCallback 本身不阻止重渲染，它只是让函数引用不变，从而让 React.memo 生效。"
         codeTone="good"
-        code={`// ❌ 内联箭头函数：每次渲染都是新引用 → React.memo 被击穿
+        code={`// ⚠️ memo 没有 useMemo 那样的依赖数组！
+//    它的第二个参数是「自定义比较函数」：
+//    (prevProps, nextProps) => boolean
+//    返回 true = 相等，跳过重渲染。
+
+// 把"依赖"显式写出来（等价于依赖 = [label, onAction]）
+const MemoChild = memo(
+  function MemoChild({ label, onAction }) { /* ... */ },
+  (prevProps, nextProps) =>
+    prevProps.label === nextProps.label &&
+    prevProps.onAction === nextProps.onAction,
+)
+
+// ❌ 内联箭头函数：每次渲染都是新引用 → onAction 比较失败 → 重渲染
 <MemoChild onAction={() => doSomething()} />
 
-// ✅ useCallback：引用稳定 → React.memo 生效，子组件不重渲染
+// ✅ useCallback：引用稳定 → onAction 比较通过 → 子组件不重渲染
 const onAction = useCallback(() => doSomething(), [])
 <MemoChild onAction={onAction} />
 
@@ -465,21 +693,41 @@ const handler = useCallback(() => {
       </DemoCard>
 
       <DemoCard
-        title="Demo 4｜反模式：给廉价计算加缓存"
-        tag="不要过度优化"
+        title="Demo 4｜该不该缓存：昂贵 vs 廉价，两组对照"
+        tag="用确定性计数说话"
         tone="default"
-        desc="点一下按钮，看看「包一层缓存」比「直接算」慢多少倍。"
-        code={`// ❌ 一行代码能算完的东西，不值得缓存
-const fullName = useMemo(() => first + ' ' + last, [first, last])
+        desc="上面一组是「100 万次循环」的昂贵计算；下面一组把「一行 a*2+b」的廉价计算重复 5000 次。不比耗时（会被噪声淹没），而是数清楚 useMemo 到底多做了什么。"
+        code={`// 昂贵计算：循环 100 万次
+function expensiveCalc(a, b) {
+  let sum = 0
+  for (let i = 0; i < 1_000_000; i++) sum = (sum + (i % 7) * a + b) % 1_000_000_007
+  return sum
+}
 
-// ✅ 直接算
-const fullName = first + ' ' + last
+// 廉价计算：一行就能算完
+function cheapCalc(a, b) { return a * 2 + b }
 
-// ❌ 只创建了一个简单对象，memo 的成本 > 收益
-const style = useMemo(() => ({ color: 'red' }), [])
+// ① 昂贵计算 + useMemo → 收益巨大 ✅
+//    依赖没变就复用结果，省下大量重复计算时间
+const value = useMemo(() => expensiveCalc(a, b), [a, b])
 
-// ✅ 提到组件外部，几乎零成本
-const STYLE = { color: 'red' } as const`}
+// ② 廉价计算 × 5000 项 + useMemo → 反而亏 ❌
+//    两边计算量完全相同（都是 5000 次 a*2+b），
+//    但 useMemo 每项都额外做了三件事：
+//      - 创建闭包 () => cheapCalc(a, b) + i   → 5000 个
+//      - 分配依赖数组 [a, b, i]                → 5000 个
+//      - 挂载 hook、比对依赖、查缓存            → 5000 个
+//    这些「缓存成本」和计算量无关，只和实例数量成正比。
+
+// 为什么不比耗时？
+//   单个 useMemo 开销只有纳秒级，测不出来；
+//   就算挂 5000 个，总耗时也会被 DOM 操作和
+//   performance.now() 的测量噪声（±几毫秒）淹没，
+//   数字忽高忽低，反而看不出规律。
+//   所以用「确定性计数」—— 数出来的数字无噪声。
+
+// 结论：计算越贵，useMemo 越值得用；
+//       计算越廉价，越不该用。`}
       >
         <MemoCostDemo />
       </DemoCard>
