@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DemoCard } from '../components/DemoCard'
 import { PageHeader, Panel } from '../components/PageHeader'
 import { RenderBadge } from '../components/RenderBadge'
-import { makeItems, peekSink, type Item } from '../lib/perf'
+import { makeItems, type Item } from '../lib/perf'
 import { useRenderCount } from '../lib/useRenderCount'
 
 /* ---------- 公共：一份"很大"的数据 + 昂贵的筛选排序 ---------- */
@@ -69,7 +69,8 @@ function CostStats({
 
 /* ---------- Demo 1：昂贵计算的记忆化 ---------- */
 
-function FilterWithoutMemo({ keyword, renders }: { keyword: string; renders: number }) {
+function FilterWithoutMemo({ keyword }: { keyword: string }) {
+  const renders = useRenderCount('WithoutMemo 分支')
   const stats = useRef({ calls: 0, total: 0 })
 
   const started = performance.now()
@@ -94,7 +95,8 @@ function FilterWithoutMemo({ keyword, renders }: { keyword: string; renders: num
   )
 }
 
-function FilterWithMemo({ keyword, renders }: { keyword: string; renders: number }) {
+function FilterWithMemo({ keyword }: { keyword: string }) {
+  const renders = useRenderCount('WithMemo 分支')
   const [calculated, setCalculated] = useState(0)
   const stats = useRef({ calls: 0, total: 0 })
 
@@ -135,8 +137,6 @@ function FilterWithMemo({ keyword, renders }: { keyword: string; renders: number
 function MemoCompareDemo() {
   const [keyword, setKeyword] = useState('')
   const [unrelated, setUnrelated] = useState(0)
-  const leftRenders = useRenderCount('WithoutMemo 分支')
-  const rightRenders = useRenderCount('WithMemo 分支')
 
   return (
     <div className="stack">
@@ -153,8 +153,8 @@ function MemoCompareDemo() {
       </div>
 
       <div className="grid-2">
-        <FilterWithoutMemo keyword={keyword} renders={leftRenders} />
-        <FilterWithMemo keyword={keyword} renders={rightRenders} />
+        <FilterWithoutMemo keyword={keyword} />
+        <FilterWithMemo keyword={keyword} />
       </div>
 
       <p className="hint">
@@ -165,51 +165,63 @@ function MemoCompareDemo() {
   )
 }
 
-/* ---------- Demo 2：useCallback 的真正作用 ---------- */
+/* ---------- Demo 2：useCallback 的真正作用（引用稳定） ---------- */
 
-function SubscriptionChild({ name, onChange }: { name: string; onChange: () => void }) {
-  const renders = useRenderCount(name)
-  const [subscribeTimes, setSubscribeTimes] = useState(0)
-
-  useEffect(() => {
-    // 模拟一次订阅（真实场景：addEventListener / WebSocket / 第三方 SDK）
-    setSubscribeTimes((value) => value + 1)
-    return () => {
-      // 模拟取消订阅
-    }
-  }, [onChange])
-
+// React.memo 子组件：只有 props 变化时才重渲染
+const MemoChild = memo(function MemoChild({
+  label,
+  onAction,
+}: {
+  label: string
+  onAction: () => void
+}) {
+  const renders = useRenderCount(label)
   return (
     <div className="heavy">
-      <RenderBadge name={name} count={renders} note={`重新订阅 ${subscribeTimes} 次`} />
-      <span className="hint">
-        useEffect 的依赖是 onChange。onChange 每次都是新函数 → 组件重渲染一次就重新订阅一次。
-      </span>
+      <RenderBadge name={label} count={renders} />
+      <button type="button" className="btn" onClick={onAction}>
+        点我触发回调
+      </button>
     </div>
   )
-}
+})
 
 function UseCallbackDemo() {
   const [tick, setTick] = useState(0)
+
+  // ✅ useCallback：引用稳定，父组件重渲染时这个函数不会变
   const stableHandler = useCallback(() => {
-    console.info('订阅回调触发', peekSink())
+    console.info('✅ [useCallback] 回调触发')
   }, [])
 
   return (
     <div className="stack">
       <div className="row">
-        <button type="button" className="btn" onClick={() => setTick((value) => value + 1)}>
-          父组件重渲染：{tick}
+        <button type="button" className="btn btn--primary" onClick={() => setTick((value) => value + 1)}>
+          让父组件重渲染（与子组件无关）：{tick}
         </button>
       </div>
 
       <div className="grid-2">
-        <SubscriptionChild name="内联箭头函数" onChange={() => console.info('inline')} />
-        <SubscriptionChild name="useCallback 包裹" onChange={stableHandler} />
+        <div className="panel panel--bad">
+          <h4 className="panel__title">❌ 内联箭头函数：每次都是新引用</h4>
+          <MemoChild label="内联箭头函数" onAction={() => console.info('❌ [内联] 回调触发')} />
+          <span className="hint">
+            onAction 每次渲染都是新函数 → React.memo 认为 props 变了 → 子组件白白重渲染。
+          </span>
+        </div>
+        <div className="panel panel--good">
+          <h4 className="panel__title">✅ useCallback 包裹：引用稳定</h4>
+          <MemoChild label="useCallback 包裹" onAction={stableHandler} />
+          <span className="hint">
+            onAction 引用不变 → React.memo 生效 → 父组件重渲染时子组件纹丝不动。
+          </span>
+        </div>
       </div>
 
       <p className="hint">
-        左边每点一次父组件按钮就「重新订阅」一次，右边只在挂载时订阅一次。
+        反复点「让父组件重渲染」：左边子组件的渲染次数不断上涨（React.memo 被新函数引用击穿），
+        右边始终停在 1。这就是 useCallback 的真正价值 —— <b>它本身不阻止重渲染，而是让引用稳定，从而让 React.memo 生效</b>。
       </p>
     </div>
   )
@@ -408,19 +420,19 @@ const result = useMemo(() => filterAndSort(items, keyword), [items, keyword])`}
       </DemoCard>
 
       <DemoCard
-        title="Demo 2｜useCallback 真正的价值：让依赖保持稳定"
+        title="Demo 2｜useCallback 的真正价值：让引用保持稳定"
         tag="高频困惑点"
         tone="good"
-        desc="很多人问「我加了 useCallback 怎么还是重渲染」。答案是：useCallback 本身不阻止重渲染，它只是让引用不变。"
+        desc="很多人问「我加了 useCallback 怎么还是重渲染」。答案是：useCallback 本身不阻止重渲染，它只是让函数引用不变，从而让 React.memo 生效。"
         codeTone="good"
-        code={`// ❌ 每次渲染都是新函数 → 子组件的 effect 每次都重跑（重新订阅）
-<Child onChange={() => doSomething()} />
+        code={`// ❌ 内联箭头函数：每次渲染都是新引用 → React.memo 被击穿
+<MemoChild onAction={() => doSomething()} />
 
-// ✅ 引用稳定 → 子组件不会因为"函数变了"而做重复工作
-const onChange = useCallback(() => doSomething(), [])
-<Child onChange={onChange} />
+// ✅ useCallback：引用稳定 → React.memo 生效，子组件不重渲染
+const onAction = useCallback(() => doSomething(), [])
+<MemoChild onAction={onAction} />
 
-// 判断标准：这个值会不会被当作
+// 判断标准：这个函数会不会被当作
 //   ① memo 组件的 props  ② 其他 Hook 的依赖
 // 如果都不会，就不需要 useCallback。`}
       >
