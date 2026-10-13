@@ -1,4 +1,4 @@
-import { memo, useReducer, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { DemoCard } from '../components/DemoCard'
 import { HeavyBox } from '../components/HeavyBox'
 import { PageHeader, Panel } from '../components/PageHeader'
@@ -293,94 +293,11 @@ function BatchingDemo() {
 }
 
 /* =========================================================================
-   Demo 5：useReducer —— dispatch 的引用是"永久稳定"的
+   Demo 5：useRef 存"不参与渲染的值"
    ========================================================================= */
 
-type CartState = { count: number; total: number }
-type CartAction = { type: 'add'; price: number } | { type: 'reset' }
-
-function cartReducer(state: CartState, action: CartAction): CartState {
-  switch (action.type) {
-    case 'add':
-      return { count: state.count + 1, total: state.total + action.price }
-    case 'reset':
-      return { count: 0, total: 0 }
-    default:
-      return state
-  }
-}
-
-/**
- * 用 memo 包住的「昂贵」子组件。
- *
- * 它的 props 里带着一个"派发更新的函数"。
- * React 保证 dispatch 的引用在组件生命周期内**永远不变**，
- * 所以 memo 的浅比较一定能通过 → 父组件重渲染时它会被完全跳过。
- */
-const StableDispatchChild = memo(function StableDispatchChild({
-  dispatch,
-}: {
-  dispatch: (action: CartAction) => void
-}) {
-  const renders = useRenderCount('memo 子组件')
-  return (
-    <div className="heavy">
-      <div className="row">
-        <span className="heavy__name">加购按钮（dispatch 通过 props 传入）</span>
-        <RenderBadge name="memo 子组件" count={renders} tone="cool" />
-      </div>
-      <button type="button" className="btn" onClick={() => dispatch({ type: 'add', price: 100 })}>
-        加一件 ¥100
-      </button>
-    </div>
-  )
-})
-
-function ReducerDemo() {
-  const renders = useRenderCount('ReducerDemo')
-  const [state, dispatch] = useReducer(cartReducer, { count: 0, total: 0 })
-  // 一个"无关"的 state：用来制造父组件的重渲染，检验子组件能不能被挡住
-  const [keyword, setKeyword] = useState('')
-
-  return (
-    <div className="stack">
-      <div className="row">
-        <input
-          type="text"
-          value={keyword}
-          placeholder="随便打点字 → 父组件重渲染"
-          onChange={(event) => setKeyword(event.target.value)}
-        />
-        <RenderBadge name="ReducerDemo（父）" count={renders} />
-      </div>
-
-      <StableDispatchChild dispatch={dispatch} />
-
-      <div className="stat-grid">
-        <div className="stat">
-          <span className="stat__label">件数</span>
-          <span className="stat__value">{state.count}</span>
-        </div>
-        <div className="stat">
-          <span className="stat__label">总价</span>
-          <span className="stat__value stat--good">¥{state.total}</span>
-        </div>
-      </div>
-
-      <p className="hint">
-        在输入框里打字，父组件渲染次数一直在涨，但右边「memo 子组件」的次数<b>纹丝不动</b> ——
-        因为 <code>dispatch</code> 的引用从挂载到卸载都不会变，memo 的浅比较永远通过。
-      </p>
-    </div>
-  )
-}
-
-/* =========================================================================
-   Demo 6：useRef 存"不参与渲染的值"
-   ========================================================================= */
-
-/** 每次渲染都会执行一次的重活，用来放大"无意义渲染"的代价 */
-function ExpensiveReadout({ label, value }: { label: string; value: string }) {
+/** 一个会显示自己渲染次数的读数行 */
+function Readout({ label, value }: { label: string; value: string }) {
   const renders = useRenderCount(label)
   return (
     <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -393,87 +310,63 @@ function ExpensiveReadout({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** ❌ 用 state 存：每次点击都触发重渲染，数字会刷新 */
+function StateCounter() {
+  const renders = useRenderCount('StateCounter')
+  const [count, setCount] = useState(0)
+  return (
+    <div className="panel panel--bad">
+      <h4 className="panel__title">❌ 放进 useState</h4>
+      <Readout label="state 计数" value={String(count)} />
+      <div className="row mt-12">
+        <button type="button" className="btn" onClick={() => setCount((value) => value + 1)}>
+          点我 +1
+        </button>
+        <RenderBadge name="StateCounter" count={renders} />
+      </div>
+      <p className="hint" style={{ marginBottom: 0 }}>
+        每点一次，数字变、组件重渲染一次。
+      </p>
+    </div>
+  )
+}
+
+/** ✅ 用 ref 存：点击只改 ref，不触发渲染，数字不会刷新 */
+function RefCounter() {
+  const renders = useRenderCount('RefCounter')
+  const countRef = useRef(0)
+  // 用一个 state 强制刷新，才能把 ref 里的值“读”到界面上
+  const [, forceRender] = useState(0)
+  return (
+    <div className="panel panel--good">
+      <h4 className="panel__title">✅ 放进 useRef</h4>
+      <Readout label="ref 计数" value={String(countRef.current)} />
+      <div className="row mt-12">
+        <button type="button" className="btn" onClick={() => { countRef.current += 1 }}>
+          点我 +1（不刷新）
+        </button>
+        <button type="button" className="btn" onClick={() => forceRender((value) => value + 1)}>
+          手动刷新看当前值
+        </button>
+        <RenderBadge name="RefCounter" count={renders} />
+      </div>
+      <p className="hint" style={{ marginBottom: 0 }}>
+        点「+1」时数字<b>纹丝不动</b>，渲染次数也不涨；点「手动刷新」才把 ref 里的最新值读出来。
+      </p>
+    </div>
+  )
+}
+
 function RefVsStateDemo() {
-  // ❌ 鼠标位置、计时次数这类"不需要显示在界面上"的值，如果放进 state…
-  const [tick, setTick] = useState(0)
-  const [mouse, setMouse] = useState({ x: 0, y: 0 })
-  const [clicks, setClicks] = useState(0)
-
-  // ✅ 同样的数据放在 ref 里：改了不会有任何渲染
-  const tickRef = useRef(0)
-  const mouseRef = useRef({ x: 0, y: 0 })
-  const clicksRef = useRef(0)
-
-  const renders = useRenderCount('RefVsStateDemo')
-
   return (
     <div className="stack">
-      <div className="row">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            // 左边：每个 tick 都触发一次完整重渲染
-            setTick((value) => value + 1)
-            // 右边：同样的累加，只是写进 ref —— 零渲染
-            tickRef.current += 1
-          }}
-        >
-          模拟定时器心跳一次
-        </button>
-
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            setMouse({ x: Math.round(Math.random() * 1000), y: Math.round(Math.random() * 1000) })
-            mouseRef.current = { x: Math.round(Math.random() * 1000), y: Math.round(Math.random() * 1000) }
-          }}
-        >
-          模拟鼠标移动一次
-        </button>
-
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            setClicks((value) => value + 1)
-            clicksRef.current += 1
-          }}
-        >
-          点击计数一次
-        </button>
-
-        <RenderBadge name="RefVsStateDemo" count={renders} />
-      </div>
-
       <div className="grid-2">
-        <div className="panel panel--bad">
-          <h4 className="panel__title">❌ 放进 useState</h4>
-          <ExpensiveReadout label="心跳次数" value={String(tick)} />
-          <ExpensiveReadout label="鼠标坐标" value={`${mouse.x}, ${mouse.y}`} />
-          <ExpensiveReadout label="点击次数" value={String(clicks)} />
-          <p className="hint" style={{ marginBottom: 0 }}>
-            每点一次，三个组件全部重渲染 —— 但界面上真正需要跟着变的，其实只有被显示出来的那个数字。
-          </p>
-        </div>
-
-        <div className="panel panel--good">
-          <h4 className="panel__title">✅ 放进 useRef</h4>
-          <p className="hint" style={{ margin: '0 0 8px' }}>
-            上面三个按钮每次点击都会同时更新 ref，但 ref 里的值<b>不参与渲染</b>，
-            所以这块面板的数字不会刷新，页面也不会重渲染。
-          </p>
-          <p className="hint" style={{ margin: '0 0 8px' }}>
-            想验证的话：打开顶栏的「控制台渲染日志」，点几次按钮 ——
-            「RefVsStateDemo」的渲染次数会涨（因为左边那三个 setState），
-            但 ref 分支不产生任何额外渲染。
-          </p>
-          <p className="hint" style={{ marginBottom: 0 }}>
-            <b>判断标准：</b>这个值需要出现在 JSX 里吗？需要 → state；只是记个数、存个 DOM 引用、存上一次的值 → ref。
-          </p>
-        </div>
+        <StateCounter />
+        <RefCounter />
       </div>
+      <p className="hint" style={{ marginBottom: 0 }}>
+        <b>判断标准：</b>这个值需要出现在 JSX 里吗？需要 → state；只是记个数、存个 DOM 引用、存上一次的值 → ref。
+      </p>
     </div>
   )
 }
@@ -481,19 +374,6 @@ function RefVsStateDemo() {
 /* =========================================================================
    页面
    ========================================================================= */
-
-const StaticPanel = memo(function StaticPanel({ title }: { title: string }) {
-  return <HeavyBox name={title} note="被我包在 memo 里了" />
-})
-
-function PageStructureDemo() {
-  return (
-    <div className="grid-2">
-      <StaticPanel title="MemoPanel A" />
-      <StaticPanel title="MemoPanel B" />
-    </div>
-  )
-}
 
 export default function StructurePage() {
   return (
@@ -631,48 +511,9 @@ setTimeout(() => {
       </DemoCard>
 
       <DemoCard
-        title="Demo 5｜组件拆分本身也是一种优化"
+        title="Demo 5｜useRef：存「不参与渲染」的值"
         tone="good"
-        desc="把大组件拆小，让每个小组件只依赖自己需要的那部分数据，这样“谁变化谁渲染”的范围自然就小了。"
-        codeTone="good"
-      >
-        <PageStructureDemo />
-      </DemoCard>
-
-      <DemoCard
-        title="Demo 6｜useReducer：dispatch 的引用永远稳定"
-        tag="API"
-        tone="good"
-        desc="useState 的 setter 和 useReducer 的 dispatch 引用都是稳定的，但 dispatch 还有一个额外好处：它让「更新逻辑」从组件里挪了出去。"
-        code={`// ❌ 用 useState + 内联函数传给 memo 子组件
-function Parent() {
-  const [count, setCount] = useState(0)
-  // 每次渲染都是新函数 → memo 失效，除非包 useCallback
-  return <Child onAdd={() => setCount(c => c + 1)} />
-}
-
-// ✅ 用 useReducer：dispatch 天然稳定，无需 useCallback
-function cartReducer(state, action) {
-  switch (action.type) {
-    case 'add':   return { ...state, count: state.count + 1, total: state.total + action.price }
-    case 'reset': return { count: 0, total: 0 }
-    default:      return state
-  }
-}
-
-function Parent() {
-  const [state, dispatch] = useReducer(cartReducer, { count: 0, total: 0 })
-  // dispatch 引用恒定 → memo(Child) 一定能被挡住
-  return <Child dispatch={dispatch} />
-}`}
-      >
-        <ReducerDemo />
-      </DemoCard>
-
-      <DemoCard
-        title="Demo 7｜useRef：存「不参与渲染」的值"
-        tone="good"
-        desc="有些数据变了，界面完全不需要跟着变。把它们放进 state，就是在白白买一次渲染。"
+        desc="左右各点几下「+1」：左边 state 的数字和渲染次数都在涨，右边 ref 的数字纹丝不动、渲染次数也不涨。"
         code={`// ❌ 不需要显示的值放进 state → 每次变化都白买一次渲染
 const [clicks, setClicks] = useState(0)   // 只是埋点计数，界面上根本不显示
 
@@ -705,7 +546,7 @@ countRef.current += 1          // 页面上的数字不会变
           <li>派生值永远不要存 state，它是"两个真相来源"的根源。</li>
           <li>React 18+ 已经自动批处理，不用再手动合并 setState；重点应该放在「缩小渲染范围」。</li>
           <li>拆分组件时，顺便想一下：哪些 state 可以继续往下沉？</li>
-          <li>useReducer 的 dispatch 天生稳定，是最适合传给 memo 子组件的回调；useRef 用来装"不需要出现在界面上"的值。</li>
+          <li>useRef 用来装"不需要出现在界面上"的值：改了不渲染，也不会白白买一次渲染。</li>
         </ul>
       </Panel>
     </>
