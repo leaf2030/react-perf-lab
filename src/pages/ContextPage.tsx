@@ -101,33 +101,66 @@ const UserContext = createContext('')
 const ThemeContext = createContext<'dark' | 'light'>('dark')
 const CountContext = createContext(0)
 
-function SplitProvider({ children }: { children: ReactNode }) {
-  const renders = useRenderCount('SplitProvider')
+/**
+ * 每个 Provider 只持有自己那一个 state，互不干扰。
+ * 改 count 时只有 CountProvider 重渲染，UserProvider / ThemeProvider 纹丝不动。
+ */
+function UserProvider({ children }: { children: ReactNode }) {
+  const renders = useRenderCount('UserProvider')
   const [user] = useState('张三')
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-  const [count, setCount] = useState(0)
-
   return (
     <UserContext.Provider value={user}>
-      <ThemeContext.Provider value={theme}>
-        <CountContext.Provider value={count}>
-          <div className="row">
-            <button type="button" className="btn" onClick={() => setCount((v) => v + 1)}>
-              点赞 +1（只改了 count）：{count}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setTheme((v) => (v === 'dark' ? 'light' : 'dark'))}
-            >
-              切换主题：{theme}
-            </button>
-            <RenderBadge name="SplitProvider" count={renders} />
-          </div>
-          <div className="grid-3 mt-12">{children}</div>
-        </CountContext.Provider>
-      </ThemeContext.Provider>
+      <RenderBadge name="UserProvider" count={renders} tone="cool" />
+      {children}
     </UserContext.Provider>
+  )
+}
+
+function ThemeProvider({ children }: { children: ReactNode }) {
+  const renders = useRenderCount('ThemeProvider')
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  return (
+    <ThemeContext.Provider value={theme}>
+      <div className="row">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setTheme((v) => (v === 'dark' ? 'light' : 'dark'))}
+        >
+          切换主题：{theme}
+        </button>
+        <RenderBadge name="ThemeProvider" count={renders} tone="cool" />
+      </div>
+      {children}
+    </ThemeContext.Provider>
+  )
+}
+
+function CountProvider({ children }: { children: ReactNode }) {
+  const renders = useRenderCount('CountProvider')
+  const [count, setCount] = useState(0)
+  return (
+    <CountContext.Provider value={count}>
+      <div className="row">
+        <button type="button" className="btn" onClick={() => setCount((v) => v + 1)}>
+          点赞 +1（只改了 count）：{count}
+        </button>
+        <RenderBadge name="CountProvider" count={renders} tone="cool" />
+      </div>
+      {children}
+    </CountContext.Provider>
+  )
+}
+
+function SplitProvider({ children }: { children: ReactNode }) {
+  return (
+    <UserProvider>
+      <ThemeProvider>
+        <CountProvider>
+          <div className="grid-3 mt-12">{children}</div>
+        </CountProvider>
+      </ThemeProvider>
+    </UserProvider>
   )
 }
 
@@ -272,38 +305,61 @@ function StoreCountCard() {
 
 const ValueContext = createContext<{ theme: string }>({ theme: 'dark' })
 
-const ValueConsumer = memo(function ValueConsumer({ name }: { name: string }) {
+/** 消费者：只读 Context 里的 theme，用 memo 包住（props 不变就不重渲染） */
+const ValueConsumer = memo(function ValueConsumer({ label }: { label: string }) {
   const { theme } = useContext(ValueContext)
-  const renders = useRenderCount(name)
-  return <RenderBadge name={name} count={renders} note={`theme = ${theme}`} />
+  const renders = useRenderCount(label)
+  return <RenderBadge name={label} count={renders} note={`theme = ${theme}`} />
 })
 
-/** Provider 内部有自己的状态，会频繁重渲染；children 由外部传入，引用稳定 */
-function Wrapper({
-  children,
-  providerName,
-  memoizeValue,
-}: {
-  children: ReactNode
-  providerName: string
-  memoizeValue: boolean
-}) {
-  const renders = useRenderCount(providerName)
+/**
+ * ❌ 反面：value 每次渲染都是新对象。
+ * 点按钮 → 组件重渲染 → value 是新对象 → 消费者被迫重渲染。
+ */
+function BadValueProvider() {
+  const renders = useRenderCount('Provider（未 memo）')
   const [tick, setTick] = useState(0)
 
-  // ✅ 依赖为空 → 引用恒定；❌ 不 memo → 每次渲染都是新对象
-  const memoized = useMemo(() => ({ theme: 'dark' }), [])
-  const value = memoizeValue ? memoized : { theme: 'dark' }
+  // ❌ 每次渲染都新建一个对象，引用永远在变
+  const value = { theme: 'dark' }
 
   return (
     <div className="stack">
       <div className="row">
         <button type="button" className="btn" onClick={() => setTick((v) => v + 1)}>
-          Provider 因无关原因重渲染：{tick}
+          点我让 Provider 重渲染：{tick}
         </button>
-        <RenderBadge name={providerName} count={renders} />
+        <RenderBadge name="Provider（未 memo）" count={renders} />
       </div>
-      <ValueContext.Provider value={value}>{children}</ValueContext.Provider>
+      <ValueContext.Provider value={value}>
+        <ValueConsumer label="Consumer（未 memo）" />
+      </ValueContext.Provider>
+    </div>
+  )
+}
+
+/**
+ * ✅ 正面：value 用 useMemo 固定引用。
+ * 点按钮 → 组件重渲染 → value 还是同一个对象 → 消费者不重渲染。
+ */
+function GoodValueProvider() {
+  const renders = useRenderCount('Provider（已 memo）')
+  const [tick, setTick] = useState(0)
+
+  // ✅ 依赖为空 → 引用恒定，永远返回同一个对象
+  const value = useMemo(() => ({ theme: 'dark' }), [])
+
+  return (
+    <div className="stack">
+      <div className="row">
+        <button type="button" className="btn" onClick={() => setTick((v) => v + 1)}>
+          点我让 Provider 重渲染：{tick}
+        </button>
+        <RenderBadge name="Provider（已 memo）" count={renders} />
+      </div>
+      <ValueContext.Provider value={value}>
+        <ValueConsumer label="Consumer（已 memo）" />
+      </ValueContext.Provider>
     </div>
   )
 }
@@ -313,15 +369,11 @@ function MemoValueDemo() {
     <div className="grid-2">
       <div className="stack">
         <p className="hint">❌ value 每次都是新对象</p>
-        <Wrapper providerName="Wrapper（未 memo）" memoizeValue={false}>
-          <ValueConsumer name="Consumer（未 memo）" />
-        </Wrapper>
+        <BadValueProvider />
       </div>
       <div className="stack">
         <p className="hint">✅ value 用 useMemo 固定</p>
-        <Wrapper providerName="Wrapper（已 memo）" memoizeValue>
-          <ValueConsumer name="Consumer（已 memo）" />
-        </Wrapper>
+        <GoodValueProvider />
       </div>
     </div>
   )
@@ -449,13 +501,20 @@ const { count } = useStoreSelector(store, (s) => ({ count: s.count }))`}
         title="Demo 4｜value 需要 memo"
         tag="最常见的低级错误"
         tone="bad"
-        desc="两个 Wrapper 内部都有会变的 state，唯一的区别是传给 Provider 的 value 有没有用 useMemo 固定。"
-        code={`// ❌ 每次渲染都是新对象
-<Ctx.Provider value={{ theme }}>
+        desc="左右两个 Provider 内部都有会变的 state（点按钮就重渲染）。区别只有一个：传给 Provider 的 value 有没有用 useMemo 固定引用。点两边的按钮，看 Consumer 的计数会不会跟着涨。"
+        code={`// ❌ 每次渲染都新建对象 → 引用变了 → 消费者重渲染
+function BadProvider() {
+  const [tick, setTick] = useState(0)
+  const value = { theme: 'dark' }        // 新对象
+  return <Ctx.Provider value={value}>...</Ctx.Provider>
+}
 
-// ✅ 引用稳定（依赖里放真正会变的值）
-const value = useMemo(() => ({ theme }), [theme])
-<Ctx.Provider value={value}>`}
+// ✅ 引用恒定 → 消费者不重渲染
+function GoodProvider() {
+  const [tick, setTick] = useState(0)
+  const value = useMemo(() => ({ theme: 'dark' }), [])
+  return <Ctx.Provider value={value}>...</Ctx.Provider>
+}`}
       >
         <MemoValueDemo />
       </DemoCard>
