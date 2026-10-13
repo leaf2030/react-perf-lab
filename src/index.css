@@ -585,21 +585,23 @@ a:hover {
 .rbadge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  height: 24px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 3px 8px;
+  min-height: 24px;
+  max-width: 100%;
   border-radius: var(--radius-sm);
   background: var(--bg-container);
   border: 1px solid var(--border);
   font-size: 12px;
   font-family: var(--mono);
   color: var(--text-dim);
-  white-space: nowrap;
 }
 
 .rbadge__name {
   color: var(--text);
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 /* 计数变化时闪主色底，对应 antd Badge 的强调 */

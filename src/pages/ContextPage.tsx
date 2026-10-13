@@ -53,7 +53,8 @@ function BigUserCard() {
   const renders = useRenderCount('UserCard')
   return (
     <div className="heavy">
-      <RenderBadge name="UserCard（只读 user）" count={renders} note={`user = ${user}`} />
+      <RenderBadge name="UserCard" count={renders} note="只读 user" />
+      <div className="heavy__body">👤 当前用户：{user}</div>
     </div>
   )
 }
@@ -63,7 +64,20 @@ function BigThemeCard() {
   const renders = useRenderCount('ThemeCard')
   return (
     <div className="heavy">
-      <RenderBadge name="ThemeCard（只读 theme）" count={renders} note={`theme = ${theme}`} />
+      <RenderBadge name="ThemeCard" count={renders} note="只读 theme" />
+      <div className="heavy__body row" style={{ gap: 8 }}>
+        <span
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: 4,
+            border: '1px solid var(--border)',
+            background: theme === 'dark' ? '#1f1f1f' : '#ffffff',
+            flexShrink: 0,
+          }}
+        />
+        🎨 主题：{theme === 'dark' ? '深色' : '浅色'}
+      </div>
     </div>
   )
 }
@@ -73,7 +87,8 @@ function BigCountCard() {
   const renders = useRenderCount('CountCard')
   return (
     <div className="heavy">
-      <RenderBadge name="CountCard（只读 count）" count={renders} note={`count = ${count}`} />
+      <RenderBadge name="CountCard" count={renders} note="只读 count" />
+      <div className="heavy__body">👍 点赞数：{count}</div>
     </div>
   )
 }
@@ -121,7 +136,8 @@ function SplitUserCard() {
   const renders = useRenderCount('UserCard')
   return (
     <div className="heavy heavy--light">
-      <RenderBadge name="UserCard（只订阅 UserContext）" count={renders} tone="cool" note={`user = ${user}`} />
+      <RenderBadge name="UserCard" count={renders} tone="cool" note="只订阅 UserContext" />
+      <div className="heavy__body">👤 当前用户：{user}</div>
     </div>
   )
 }
@@ -131,7 +147,20 @@ function SplitThemeCard() {
   const renders = useRenderCount('ThemeCard')
   return (
     <div className="heavy heavy--light">
-      <RenderBadge name="ThemeCard（只订阅 ThemeContext）" count={renders} tone="cool" note={`theme = ${theme}`} />
+      <RenderBadge name="ThemeCard" count={renders} tone="cool" note="只订阅 ThemeContext" />
+      <div className="heavy__body row" style={{ gap: 8 }}>
+        <span
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: 4,
+            border: '1px solid var(--border)',
+            background: theme === 'dark' ? '#1f1f1f' : '#ffffff',
+            flexShrink: 0,
+          }}
+        />
+        🎨 主题：{theme === 'dark' ? '深色' : '浅色'}
+      </div>
     </div>
   )
 }
@@ -141,7 +170,8 @@ function SplitCountCard() {
   const renders = useRenderCount('CountCard')
   return (
     <div className="heavy heavy--light">
-      <RenderBadge name="CountCard（只订阅 CountContext）" count={renders} tone="cool" note={`count = ${count}`} />
+      <RenderBadge name="CountCard" count={renders} tone="cool" note="只订阅 CountContext" />
+      <div className="heavy__body">👍 点赞数：{count}</div>
     </div>
   )
 }
@@ -197,6 +227,7 @@ function StoreUserCard() {
   return (
     <div className="heavy heavy--light">
       <RenderBadge name="StoreUserCard" count={renders} tone="cool" note={`selector: user = ${user}`} />
+      <div className="heavy__body">👤 当前用户：{user}</div>
     </div>
   )
 }
@@ -207,6 +238,19 @@ function StoreThemeCard() {
   return (
     <div className="heavy heavy--light">
       <RenderBadge name="StoreThemeCard" count={renders} tone="cool" note={`selector: theme = ${theme}`} />
+      <div className="heavy__body row" style={{ gap: 8 }}>
+        <span
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: 4,
+            border: '1px solid var(--border)',
+            background: theme === 'dark' ? '#1f1f1f' : '#ffffff',
+            flexShrink: 0,
+          }}
+        />
+        🎨 主题：{theme === 'dark' ? '深色' : '浅色'}
+      </div>
     </div>
   )
 }
@@ -217,6 +261,7 @@ function StoreCountCard() {
   return (
     <div className="heavy heavy--light">
       <RenderBadge name="StoreCountCard" count={renders} tone="cool" note={`selector: count = ${count}`} />
+      <div className="heavy__body">👍 点赞数：{count}</div>
     </div>
   )
 }
@@ -317,7 +362,7 @@ export default function ContextPage() {
         title="Demo 1｜一个大 Context：改一个字段，三个组件全刷新"
         tag="问题现场"
         tone="bad"
-        desc="点赞按钮只改了 count，但 UserCard 和 ThemeCard 也跟着重渲染了。"
+        desc="点赞按钮只改了 count，但 UserCard 和 ThemeCard 也跟着重渲染了。主要原因是根据 Object.is 比较，Provider 的 value 每次都是新对象 → 所有消费者都重渲染。"
         code={`const AppContext = createContext(null)
 
 function Provider({ children }) {
