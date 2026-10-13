@@ -174,8 +174,6 @@ function PreloadDemo() {
    Demo 3：加载失败 + 重试
    ========================================================================= */
 
-let loadCount = 0
-
 /**
  * 一个「一定会失败」的 loader。
  *
@@ -184,11 +182,14 @@ let loadCount = 0
  * 用全局标记的话失败一次后无法复位，演示结果不稳定。
  */
 function makeFaultyLoader(attempt: number) {
+  // 计数放在 loader 内部：每次重建 lazy 组件都会得到一个新的计数器，
+  // 所以每次重试都从「第 1 次尝试」开始，不会跨重试累加。
+  let tries = 0
   return () => {
-    loadCount += 1
+    tries += 1
     if (attempt === 0) {
       return Promise.reject<typeof import('../demo/HeavyChart')>(
-        new Error(`模拟网络中断：chunk 加载失败（第 ${loadCount} 次尝试）`),
+        new Error(`模拟网络中断：chunk 加载失败（第 ${tries} 次尝试）`),
       )
     }
     return import('../demo/HeavyChart')
