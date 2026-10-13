@@ -73,29 +73,49 @@ function GoodStateDesign() {
    Demo 2：key 用 index 的经典 bug
    ========================================================================= */
 
-type Todo = { id: number; text: string }
+type Todo = { id: number; text: string; color: string }
 
+// 每条数据自带一个颜色 —— 这是"数据本身"的属性，不随位置变化。
+// 一旦 key 用错，颜色就会和编号/内容错位，一眼就能看出来。
 const INITIAL_TODOS: Todo[] = [
-  { id: 1, text: '① 写周报' },
-  { id: 2, text: '② 修线上 bug' },
-  { id: 3, text: '③ Code Review' },
-  { id: 4, text: '④ 开周会' },
+  { id: 1, text: '① 写周报', color: 'var(--primary)' },
+  { id: 2, text: '② 修线上 bug', color: 'var(--success)' },
+  { id: 3, text: '③ Code Review', color: 'var(--warning)' },
+  { id: 4, text: '④ 开周会', color: 'var(--error)' },
 ]
 
 function TodoRow({ todo }: { todo: Todo }) {
-  // 每一行有自己的输入框状态：这才是"key 用错"时错位的根源
-  const [text, setText] = useState(todo.text)
+  // 每一行有自己的计数器状态：这才是"key 用错"时错位的根源。
+  // state 只在组件「挂载」时初始化一次，之后即使 props 变了也不会重置。
+  const [count, setCount] = useState(0)
+  // 关键：把"这一行原本的颜色"也存进 state（挂载时固定）。
+  // 圆点颜色直接读 prop（会跟着新数据变），而计数数字的颜色来自 state（不会变）。
+  // 一旦 key 用错，两者就会"打架"—— 绿点配蓝色数字，一眼看出错位。
+  const [ownColor] = useState(todo.color)
   return (
-    <li className="row" style={{ padding: '4px 0' }}>
+    <li className="row" style={{ padding: '4px 0', gap: 8 }}>
+      <span
+        style={{
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          background: todo.color,
+          flexShrink: 0,
+        }}
+      />
       <span className="hint" style={{ width: 30 }}>
         #{todo.id}
       </span>
-      <input
-        type="text"
-        value={text}
-        style={{ flex: 1 }}
-        onChange={(event) => setText(event.target.value)}
-      />
+      <span style={{ flex: 1 }}>{todo.text}</span>
+      <button type="button" className="btn" onClick={() => setCount((value) => value + 1)}>
+        点我 +1
+      </button>
+      <span
+        className="hint"
+        style={{ width: 60, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+      >
+        计数：<b style={{ color: ownColor }}>{count}</b>
+      </span>
     </li>
   )
 }
@@ -130,9 +150,6 @@ function KeyBugDemo() {
         <button type="button" className="btn" onClick={() => setTodos((list) => [...list].reverse())}>
           倒序
         </button>
-        <button type="button" className="btn" onClick={() => reload(useIdKey)}>
-          重置数据
-        </button>
       </div>
 
       <ul className="checklist" key={version} style={{ listStyle: 'none', paddingLeft: 0, margin: 0 }}>
@@ -142,9 +159,11 @@ function KeyBugDemo() {
       </ul>
 
       <p className="hint">
-        先用 index 当 key：随便改几个输入框的内容，然后点「删除第一条」—— 左边的编号往前提了一位，但输入框里的内容没跟着走，
-        因为 React 认为「key 0 还是那个组件」（复用了组件实例和它的内部 state）。切到 id 当 key 再试一次，编号和内容始终对得上。
-        点「倒序」也是同样的效果，而且更明显。
+        <b>先给每行点几下「点我 +1」</b>（比如①点 3 下、②点 5 下），让计数和颜色对应上。
+        然后用 index 当 key，点「删除第一条」—— 你会看到<b>绿点配着蓝色数字 3</b>：
+        圆点颜色是直接读 prop 的，已经跟着新数据变成了绿色；
+        但计数数字的颜色和数值都存在 state 里，<b>没被重置</b>，还是①的蓝色和 3。
+        两者一打架，bug 就暴露了。切到 id 当 key 再试一次，颜色和计数始终对得上。点「倒序」效果更明显。
       </p>
     </div>
   )
@@ -574,7 +593,7 @@ function Page() {
         title="Demo 2｜列表 key 用 index 的经典 bug"
         tag="必讲"
         tone="bad"
-        desc="这不是性能问题，但它比性能问题更常出现在 Code Review 里，而且和 key 的复用机制直接相关。"
+        desc="先给每行点几下计数器，再点「删除第一条」—— 计数会跟着错误的行走，颜色和数字对不上，一眼就能看出 bug。"
         code={`// ❌ 列表会增删改排序时，index 会错位
 {items.map((item, index) => <Row key={index} item={item} />)}
 
@@ -582,7 +601,14 @@ function Page() {
 {items.map((item) => <Row key={item.id} item={item} />)}
 
 // ✅ 没有 id 时，在数据"创建时"生成一次，而不是在 render 里生成
-const row = { ...input, id: crypto.randomUUID() }`}
+const row = { ...input, id: crypto.randomUUID() }
+
+// 为什么 index 会错位？
+// React 靠 key 判断"这个组件还是不是原来那个"。
+// key 用 index 时，删除第一条后：
+//   位置 0 的 key 还是 0 → React 认为"还是同一个组件" → 复用实例
+//   但它的 props 已经换成了新数据，而组件内部的 state 不会重置
+//   → 于是"新数据的 props"和"旧组件的 state"错位了`}
       >
         <KeyBugDemo />
       </DemoCard>
