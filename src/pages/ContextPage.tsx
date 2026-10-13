@@ -1,4 +1,4 @@
-import { createContext, memo, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import { DemoCard } from '../components/DemoCard'
 import { PageHeader, Panel } from '../components/PageHeader'
 import { RenderBadge } from '../components/RenderBadge'
@@ -300,86 +300,6 @@ function StoreCountCard() {
 }
 
 /* =========================================================================
-   Demo 4：value 有没有 memo 的区别
-   ========================================================================= */
-
-const ValueContext = createContext<{ theme: string }>({ theme: 'dark' })
-
-/** 消费者：只读 Context 里的 theme，用 memo 包住（props 不变就不重渲染） */
-const ValueConsumer = memo(function ValueConsumer({ label }: { label: string }) {
-  const { theme } = useContext(ValueContext)
-  const renders = useRenderCount(label)
-  return <RenderBadge name={label} count={renders} note={`theme = ${theme}`} />
-})
-
-/**
- * ❌ 反面：value 每次渲染都是新对象。
- * 点按钮 → 组件重渲染 → value 是新对象 → 消费者被迫重渲染。
- */
-function BadValueProvider() {
-  const renders = useRenderCount('Provider（未 memo）')
-  const [tick, setTick] = useState(0)
-
-  // ❌ 每次渲染都新建一个对象，引用永远在变
-  const value = { theme: 'dark' }
-
-  return (
-    <div className="stack">
-      <div className="row">
-        <button type="button" className="btn" onClick={() => setTick((v) => v + 1)}>
-          点我让 Provider 重渲染：{tick}
-        </button>
-        <RenderBadge name="Provider（未 memo）" count={renders} />
-      </div>
-      <ValueContext.Provider value={value}>
-        <ValueConsumer label="Consumer（未 memo）" />
-      </ValueContext.Provider>
-    </div>
-  )
-}
-
-/**
- * ✅ 正面：value 用 useMemo 固定引用。
- * 点按钮 → 组件重渲染 → value 还是同一个对象 → 消费者不重渲染。
- */
-function GoodValueProvider() {
-  const renders = useRenderCount('Provider（已 memo）')
-  const [tick, setTick] = useState(0)
-
-  // ✅ 依赖为空 → 引用恒定，永远返回同一个对象
-  const value = useMemo(() => ({ theme: 'dark' }), [])
-
-  return (
-    <div className="stack">
-      <div className="row">
-        <button type="button" className="btn" onClick={() => setTick((v) => v + 1)}>
-          点我让 Provider 重渲染：{tick}
-        </button>
-        <RenderBadge name="Provider（已 memo）" count={renders} />
-      </div>
-      <ValueContext.Provider value={value}>
-        <ValueConsumer label="Consumer（已 memo）" />
-      </ValueContext.Provider>
-    </div>
-  )
-}
-
-function MemoValueDemo() {
-  return (
-    <div className="grid-2">
-      <div className="stack">
-        <p className="hint">❌ value 每次都是新对象</p>
-        <BadValueProvider />
-      </div>
-      <div className="stack">
-        <p className="hint">✅ value 用 useMemo 固定</p>
-        <GoodValueProvider />
-      </div>
-    </div>
-  )
-}
-
-/* =========================================================================
    页面
    ========================================================================= */
 
@@ -495,28 +415,6 @@ const count = useStoreSelector(store, (s) => s.count)
 const { count } = useStoreSelector(store, (s) => ({ count: s.count }))`}
       >
         <StoreDemo />
-      </DemoCard>
-
-      <DemoCard
-        title="Demo 4｜value 需要 memo"
-        tag="最常见的低级错误"
-        tone="bad"
-        desc="左右两个 Provider 内部都有会变的 state（点按钮就重渲染）。区别只有一个：传给 Provider 的 value 有没有用 useMemo 固定引用。点两边的按钮，看 Consumer 的计数会不会跟着涨。"
-        code={`// ❌ 每次渲染都新建对象 → 引用变了 → 消费者重渲染
-function BadProvider() {
-  const [tick, setTick] = useState(0)
-  const value = { theme: 'dark' }        // 新对象
-  return <Ctx.Provider value={value}>...</Ctx.Provider>
-}
-
-// ✅ 引用恒定 → 消费者不重渲染
-function GoodProvider() {
-  const [tick, setTick] = useState(0)
-  const value = useMemo(() => ({ theme: 'dark' }), [])
-  return <Ctx.Provider value={value}>...</Ctx.Provider>
-}`}
-      >
-        <MemoValueDemo />
       </DemoCard>
 
       <Panel title="Context vs 外部 store，怎么选">
