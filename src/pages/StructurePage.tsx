@@ -194,10 +194,12 @@ function GoodsList({ items }: { items: Goods[] }) {
   )
 }
 
-function BadDerivedState() {
+function DerivedStateDemo() {
   const [items, setItems] = useState<Goods[]>(INITIAL_GOODS)
   // ❌ 把可以算出来的总价，也存成了一份 state
   const [total, setTotal] = useState(() => INITIAL_GOODS.reduce((sum, item) => sum + item.price, 0))
+  // ✅ 派生值直接算出来，只有一个数据源，永远不会不同步
+  const realTotal = items.reduce((sum, item) => sum + item.price, 0)
 
   function changePrice(id: number, delta: number) {
     setItems((list) => list.map((item) => (item.id === id ? { ...item, price: item.price + delta } : item)))
@@ -205,56 +207,28 @@ function BadDerivedState() {
   }
 
   return (
-    <div className="panel panel--bad">
-      <h4 className="panel__title">❌ 用 state 存派生值</h4>
+    <div className="stack">
       <GoodsList items={items} />
+
       <div className="stat-grid">
-        <div className="stat">
-          <span className="stat__label">state 里存的总价</span>
-          <span className="stat__value stat--bad">¥{total}</span>
+        <div className="stat stat--bad">
+          <span className="stat__label">❌ state 里存的总价</span>
+          <span className="stat__value">¥{total}</span>
         </div>
-        <div className="stat">
-          <span className="stat__label">列表真实总价</span>
-          <span className="stat__value stat--good">
-            ¥{items.reduce((sum, item) => sum + item.price, 0)}
-          </span>
+        <div className="stat stat--good">
+          <span className="stat__label">✅ 渲染时算出来的总价</span>
+          <span className="stat__value">¥{realTotal}</span>
         </div>
       </div>
-      <div className="row mt-12">
+
+      <div className="row">
         <button type="button" className="btn" onClick={() => changePrice(2, 100)}>
           显示器涨价 100
         </button>
-        <button type="button" className="btn" onClick={() => setTotal(items.reduce((sum, item) => sum + item.price, 0))}>
-          手动同步 total（麻烦）
+        <button type="button" className="btn" onClick={() => setTotal(realTotal)}>
+          手动同步 total
         </button>
-      </div>
-    </div>
-  )
-}
-
-function GoodDerivedState() {
-  const [items, setItems] = useState<Goods[]>(INITIAL_GOODS)
-  // ✅ 派生值直接算出来（贵的话再套 useMemo），只有一个数据源，永远不会不同步
-  const total = items.reduce((sum, item) => sum + item.price, 0)
-
-  function changePrice(id: number, delta: number) {
-    setItems((list) => list.map((item) => (item.id === id ? { ...item, price: item.price + delta } : item)))
-  }
-
-  return (
-    <div className="panel panel--good">
-      <h4 className="panel__title">✅ 直接派生</h4>
-      <GoodsList items={items} />
-      <div className="stat-grid">
-        <div className="stat">
-          <span className="stat__label">渲染时算出来的总价</span>
-          <span className="stat__value stat--good">¥{total}</span>
-        </div>
-      </div>
-      <div className="row mt-12">
-        <button type="button" className="btn" onClick={() => changePrice(2, 100)}>
-          显示器涨价 100
-        </button>
+        <span className="hint">点「涨价」→ 左边数字不动，右边跟着变</span>
       </div>
     </div>
   )
@@ -616,7 +590,7 @@ const row = { ...input, id: crypto.randomUUID() }
       <DemoCard
         title="Demo 3｜不要把“可以算出来的值”存进 state"
         tone="default"
-        desc="总价是可以从列表算出来的，一旦把它也存成 state，就有了两个真相来源。"
+        desc="总价是可以从列表算出来的，一旦把它也存成 state，就有了两个真相来源。点「涨价」看两个数字分道扬镳。"
         code={`// ❌ 两个 state，需要手动保持同步
 const [items, setItems] = useState(list)
 const [total, setTotal] = useState(sum(list))
@@ -633,10 +607,7 @@ const total = items.reduce((sum, i) => sum + i.price, 0)
 // ✅ 计算很贵时，再套一层 useMemo
 const total = useMemo(() => items.reduce((sum, i) => sum + i.price, 0), [items])`}
       >
-        <div className="grid-2">
-          <BadDerivedState />
-          <GoodDerivedState />
-        </div>
+        <DerivedStateDemo />
       </DemoCard>
 
       <DemoCard
