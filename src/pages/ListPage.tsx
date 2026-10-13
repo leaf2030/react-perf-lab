@@ -120,11 +120,25 @@ const VirtualRow = memo(function VirtualRow({ item, top }: { item: Item; top: nu
 })
 
 function VirtualListDemo() {
+  const renders = useRenderCount('VirtualListDemo')
   const items = useMemo(() => makeItems(50_000), [])
+  const [keyword, setKeyword] = useState('')
   const [scrollTop, setScrollTop] = useState(0)
   const [domCount, setDomCount] = useState(0)
   const innerRef = useRef<HTMLDivElement>(null)
-  const { start, end } = useVirtualRange(items.length, scrollTop, 6)
+  // 统计 filter 真正执行了多少次（用 ref 计数，避免计数本身触发重渲染）
+  const filterRuns = useRef(0)
+
+  // ✅ useMemo：只有 keyword 变了才重新 filter。
+  // 滚动时 scrollTop 变 → 组件重渲染 → 但 keyword 没变 → 直接复用缓存。
+  const filtered = useMemo(() => {
+    filterRuns.current += 1
+    const key = keyword.trim().toLowerCase()
+    if (!key) return items
+    return items.filter((item) => item.label.toLowerCase().includes(key))
+  }, [items, keyword])
+
+  const { start, end } = useVirtualRange(filtered.length, scrollTop, 6)
 
   // 统计真实落在 DOM 里的行数，滚动时更新
   useEffect(() => {
@@ -134,68 +148,6 @@ function VirtualListDemo() {
     return () => cancelAnimationFrame(id)
   }, [start, end])
 
-  const visible = items.slice(start, end)
-
-  return (
-    <div className="stack">
-      <div className="stat-grid">
-        <div className="stat">
-          <span className="stat__label">数据总量</span>
-          <span className="stat__value">50,000</span>
-        </div>
-        <div className="stat">
-          <span className="stat__label">真实 DOM 节点数</span>
-          <span className="stat__value stat--good">{domCount}</span>
-        </div>
-        <div className="stat">
-          <span className="stat__label">本次渲染的行数</span>
-          <span className="stat__value stat--good">{end - start}</span>
-        </div>
-        <div className="stat">
-          <span className="stat__label">当前渲染区间</span>
-          <span className="stat__value" style={{ fontSize: 14 }}>
-            {start} ~ {end}
-          </span>
-        </div>
-      </div>
-
-      <div
-        className="vlist"
-        style={{ height: VIEWPORT_HEIGHT }}
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      >
-        {/* 撑开总高度，产生真实的滚动条 */}
-        <div className="vlist__inner" style={{ height: items.length * ROW_HEIGHT }} ref={innerRef}>
-          {visible.map((item, index) => (
-            <VirtualRow key={item.id} item={item} top={(start + index) * ROW_HEIGHT} />
-          ))}
-        </div>
-      </div>
-
-      <p className="hint">
-        5 万条数据，DOM 里始终只有十几个节点，首屏耗时和滚动帧率都是恒定的 —— 因为它只画"你看得见的那几行"。
-      </p>
-    </div>
-  )
-}
-
-/* =========================================================================
-   虚拟列表 + 搜索：演示虚拟化之后还有哪些坑
-   ========================================================================= */
-
-function SearchVirtualDemo() {
-  const renders = useRenderCount('SearchVirtualDemo')
-  const items = useMemo(() => makeItems(30_000), [])
-  const [keyword, setKeyword] = useState('')
-  const [scrollTop, setScrollTop] = useState(0)
-
-  const filtered = useMemo(() => {
-    const key = keyword.trim().toLowerCase()
-    if (!key) return items
-    return items.filter((item) => item.label.toLowerCase().includes(key))
-  }, [items, keyword])
-
-  const { start, end } = useVirtualRange(filtered.length, scrollTop, 6)
   const visible = filtered.slice(start, end)
 
   return (
@@ -210,12 +162,35 @@ function SearchVirtualDemo() {
             setScrollTop(0)
           }}
         />
-        <RenderBadge name="SearchVirtualDemo" count={renders} note={`命中 ${filtered.length} 条`} />
-        <span className="hint">输入依然跟手，因为 DOM 里只有十几个节点</span>
+        <RenderBadge name="VirtualListDemo" count={renders} note={`命中 ${filtered.length} 条`} />
       </div>
 
-      <div className="vlist" style={{ height: VIEWPORT_HEIGHT }} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
-        <div className="vlist__inner" style={{ height: filtered.length * ROW_HEIGHT }}>
+      <div className="stat-grid">
+        <div className="stat">
+          <span className="stat__label">数据总量</span>
+          <span className="stat__value">50,000</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">真实 DOM 节点数</span>
+          <span className="stat__value stat--good">{domCount}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">组件重渲染次数</span>
+          <span className="stat__value stat--bad">{renders}</span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">filter 真正执行次数</span>
+          <span className="stat__value stat--good">{filterRuns.current}</span>
+        </div>
+      </div>
+
+      <div
+        className="vlist"
+        style={{ height: VIEWPORT_HEIGHT }}
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      >
+        {/* 撑开总高度，产生真实的滚动条 */}
+        <div className="vlist__inner" style={{ height: filtered.length * ROW_HEIGHT }} ref={innerRef}>
           {visible.map((item, index) => (
             <VirtualRow key={item.id} item={item} top={(start + index) * ROW_HEIGHT} />
           ))}
@@ -223,8 +198,15 @@ function SearchVirtualDemo() {
       </div>
 
       <p className="hint">
-        注意这里仍然有两个成本：① 每次输入都要 filter 30,000 条（已用 useMemo 限制在依赖变化时）；
-        ② 列表为空时要渲染一个"没有结果"的占位，否则用户会以为列表挂了。
+        5 万条数据，DOM 里始终只有十几个节点，首屏耗时和滚动帧率都是恒定的 —— 因为它只画"你看得见的那几行"。
+      </p>
+      <p className="hint">
+        <b>滚动列表</b>：组件重渲染次数疯涨，但 filter 执行次数纹丝不动 —— 因为滚动只改了 scrollTop，
+        keyword 没变，useMemo 直接复用上次结果。这就是 useMemo 在这里的全部功劳。
+      </p>
+      <p className="hint">
+        <b>输入关键词</b>：filter 执行次数会 +1，50,000 条该遍历还是遍历 —— useMemo 救不了这个。
+        输入卡顿的正解是防抖（debounce）、Web Worker，或者干脆把搜索交给后端。
       </p>
     </div>
   )
@@ -286,7 +268,7 @@ function List({ items }) {
         title="Demo 2｜虚拟列表：5 万条数据，DOM 里只有 20 来个节点"
         tag="核心方案"
         tone="good"
-        desc="滚动一下右侧列表，观察「真实 DOM 节点数」和「当前渲染区间」这两个指标。"
+        desc="滚动列表，观察「真实 DOM 节点数」始终只有十几个；再输入关键词搜索，观察「组件重渲染次数」疯涨但「filter 执行次数」纹丝不动。"
         codeTone="good"
         code={`function useVirtualRange(count, scrollTop, overscan) {
   const first = Math.floor(scrollTop / ROW_HEIGHT)
@@ -296,40 +278,34 @@ function List({ items }) {
 }
 
 function VirtualList({ items }) {
+  const [keyword, setKeyword] = useState('')
   const [scrollTop, setScrollTop] = useState(0)
-  const { start, end } = useVirtualRange(items.length, scrollTop, 6)
+
+  // ✅ 只有 keyword 变了才重新 filter；滚动时直接复用缓存
+  const filtered = useMemo(() => {
+    const key = keyword.trim().toLowerCase()
+    return key ? items.filter((i) => i.label.toLowerCase().includes(key)) : items
+  }, [items, keyword])
+
+  const { start, end } = useVirtualRange(filtered.length, scrollTop, 6)
 
   return (
     <div style={{ height: 320, overflowY: 'auto' }}
          onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
       {/* 用总高度撑出滚动条 */}
-      <div style={{ height: items.length * ROW_HEIGHT, position: 'relative' }}>
-        {items.slice(start, end).map((item, i) => (
+      <div style={{ height: filtered.length * ROW_HEIGHT, position: 'relative' }}>
+        {filtered.slice(start, end).map((item, i) => (
           <Row key={item.id} item={item} top={(start + i) * ROW_HEIGHT} />
         ))}
       </div>
     </div>
   )
-}`}
+}
+
+// ⚠️ useMemo 只省掉了「滚动时的无谓重算」。
+// 输入关键词时，5 万条该遍历还是遍历 —— 那要靠 debounce / Web Worker / 后端搜索。`}
       >
         <VirtualListDemo />
-      </DemoCard>
-
-      <DemoCard
-        title="Demo 3｜虚拟化之后：搜索、筛选要怎么办"
-        tag="实战细节"
-        tone="default"
-        desc="虚拟化解决了渲染，但筛选依然要遍历全量数据 —— 这时候该 useMemo 出场了。"
-        code={`// 筛选 + 虚拟化组合
-const filtered = useMemo(() => {
-  const key = keyword.trim().toLowerCase()
-  return key ? items.filter((i) => i.label.toLowerCase().includes(key)) : items
-}, [items, keyword])
-
-// 关键词变化时把滚动位置拉回顶部
-onChange={(e) => { setKeyword(e.target.value); setScrollTop(0) }}`}
-      >
-        <SearchVirtualDemo />
       </DemoCard>
 
       <Panel title="生态速查">
