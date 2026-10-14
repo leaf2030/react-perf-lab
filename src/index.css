@@ -891,16 +891,38 @@ input[type='range'] {
   width: 72px;
   height: 72px;
   transform-style: preserve-3d;
-  /* 故意不加 transition：旋转必须由 JS 每帧驱动，
+  /* 故意不加 transition：位置必须由 JS 每帧驱动，
      否则 CSS 平滑动画会把"慢一帧"抹平。 */
 }
 
-/* 重叠对比：两个立方体叠在同一个舞台中心 */
-.effect-stage--overlay .effect-cube {
+/* 赛跑轨道：两个立方体沿水平方向单向移动 */
+.effect-stage--race {
+  display: block;
+  height: 120px;
+}
+
+/* 轨道上的立方体：用 left 定位（JS 每帧写 left） */
+.effect-stage--race .effect-cube,
+.effect-stage--race .effect-ghost {
   position: absolute;
   top: 50%;
-  left: 50%;
-  margin: -36px 0 0 -36px;
+  margin-top: -36px;
+  left: 0;
+}
+
+/* 终点线 */
+.effect-stage--race::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 12px;
+  width: 2px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--text-quaternary) 0 6px,
+    transparent 6px 12px
+  );
 }
 
 /* 立方体的 6 个面 */
@@ -927,35 +949,37 @@ input[type='range'] {
 .effect-cube__face--top    { transform: rotateX(90deg) translateZ(36px); }
 .effect-cube__face--bottom { transform: rotateX(-90deg) translateZ(36px); }
 
-/* useEffect 的立方体：半透明红，叠在上层 → 错位时露出下面的绿立方体 */
+/* useEffect 的立方体：红色 */
 .effect-cube--bad .effect-cube__face {
-  border-color: rgba(255, 77, 79, 0.9);
-  mix-blend-mode: screen;
+  border-color: rgba(255, 77, 79, 0.95);
+  background: rgba(255, 77, 79, 0.25);
 }
 
-/* useLayoutEffect 的立方体：半透明绿，垫在底层 */
+/* useLayoutEffect 的立方体：绿色 */
 .effect-cube--good .effect-cube__face {
-  border-color: rgba(82, 196, 26, 0.9);
-  mix-blend-mode: screen;
+  border-color: rgba(82, 196, 26, 0.95);
+  background: rgba(82, 196, 26, 0.25);
 }
 
 /* 拖影：useEffect 立方体保留前几帧的幽灵，让"慢"变成可见的拖尾 */
 .effect-ghost {
   position: absolute;
-  top: 50%;
-  left: 50%;
   width: 72px;
   height: 72px;
-  margin: -36px 0 0 -36px;
   transform-style: preserve-3d;
   pointer-events: none;
-  opacity: 0.18;
 }
 
 .effect-ghost .effect-cube__face {
   border-color: rgba(255, 77, 79, 0.9);
   background: transparent !important;
 }
+
+/* 越旧的幽灵越淡 */
+.effect-ghost--1 { opacity: 0.30; }
+.effect-ghost--2 { opacity: 0.20; }
+.effect-ghost--3 { opacity: 0.12; }
+.effect-ghost--4 { opacity: 0.06; }
 
 /* ---------- 指标（对应 antd Statistic） ---------- */
 
