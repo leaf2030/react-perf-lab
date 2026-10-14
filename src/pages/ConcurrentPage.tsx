@@ -475,176 +475,288 @@ function TransitionDemo() {
    Demo 3：useEffect vs useLayoutEffect —— 时机决定了会不会闪
    ========================================================================= */
 
-/** 让"闪一下"变得肉眼可见：故意让 effect 里的计算慢一点 */
-const LAYOUT_COST_MS = 30
+type EffectKind = 'effect' | 'layout'
 
+/** 立方体转一圈的时长（ms）—— 越短，每帧角度变化越大，"慢一帧"越明显 */
+const ANIM_PERIOD_MS = 400
+
+/** 立方体的 6 个面 */
+const CUBE_FACES = ['front', 'back', 'right', 'left', 'top', 'bottom'] as const
+
+/** 拖影保留的帧数（useEffect 立方体的"幽灵"） */
+const GHOST_FRAMES = 4
+
+/**
+ * 两个 3D 立方体**重叠**在同一个舞台里，跑**同一个旋转动画**（绕 X / Y 轴翻滚）。
+ *
+ * 唯一的区别：动画每一帧算出的旋转角度，用哪种 effect 同步到 DOM。
+ *
+ * - useLayoutEffect（绿色，底层）：绘制前同步 → 用**当前帧**角度 → 严丝合缝
+ * - useEffect（红色，上层）：绘制后才同步 → 只能拿到**上一帧**角度 → 恒定慢一帧
+ *
+ * 关键：useEffect 在浏览器**绘制之后**才执行，所以它写进 DOM 的，
+ * 永远是"上一帧算出的角度"—— 这不是造假，而是 useEffect 的真实语义。
+ *
+ * 两个立方体**叠在一起**，错位会直接表现为"红绿重影/撕裂"，
+ * 再加上红色立方体的**拖影**（保留前几帧的幽灵），一眼就能看出谁在拖后腿。
+ *
+ * 实现要点：动画直接改 DOM（ref.style），不经过 React state ——
+ * 这正是 useLayoutEffect 的经典用法，也避免了每帧 setState 的死循环。
+ */
 function LayoutEffectDemo() {
-  const [tick, setTick] = useState(0)
-  const [useLayout, setUseLayout] = useState(true)
-  // 每次重排的实测耗时，画成会跳动的柱形图
-  const [costHistory, setCostHistory] = useState<number[]>([])
+  const [running, setRunning] = useState(true)
+  // 两种时机各自累积的"落后帧数"（客观测量，作为补充证据）
+  const [lag, setLag] = useState<Record<EffectKind, number>>({ effect: 0, layout: 0 })
+
+  // 两个立方体的 DOM 引用
+  const effectCubeRef = useRef<HTMLDivElement>(null)
+  const layoutCubeRef = useRef<HTMLDivElement>(null)
+  // 拖影（幽灵）的 DOM 引用
+  const ghostRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  // 动画当前帧的进度（rAF 写入，effect 读取）
+  const frameProgressRef = useRef(0)
+  // 上一帧的进度（useEffect 读它 —— 因为它在绘制后才执行）
+  const prevProgressRef = useRef(0)
+  // 拖影用的历史进度（最近 GHOST_FRAMES 帧）
+  const ghostHistoryRef = useRef<number[]>([])
+  // 动画帧号
+  const frameRef = useRef(0)
+  // 上一次 effect 同步时的帧号
+  const syncedFrameRef = useRef<Record<EffectKind, number>>({ effect: -1, layout: -1 })
+  // 落后帧数（用 ref 累积，避免每帧 setState）
+  const lagRef = useRef<Record<EffectKind, number>>({ effect: 0, layout: 0 })
+
+  /** 把进度写进立方体的 3D 旋转（直接改 DOM） */
+  function paintCube(el: HTMLDivElement | null, p: number) {
+    if (!el) return
+    const angle = p * 360
+    el.style.transform = `rotateX(${angle}deg) rotateY(${angle * 1.6}deg)`
+  }
+
+  // 动画驱动：每帧更新进度
+  useEffect(() => {
+    if (!running) return
+    let raf = 0
+    const start = performance.now()
+    const loop = (now: number) => {
+      const t = ((now - start) % ANIM_PERIOD_MS) / ANIM_PERIOD_MS
+      // 0 → 1 → 0 的三角波，来回翻滚
+      prevProgressRef.current = frameProgressRef.current
+      frameProgressRef.current = t < 0.5 ? t * 2 : (1 - t) * 2
+      // 记录历史进度，供拖影使用
+      ghostHistoryRef.current.push(frameProgressRef.current)
+      if (ghostHistoryRef.current.length > GHOST_FRAMES) ghostHistoryRef.current.shift()
+      frameRef.current += 1
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [running])
+
+  /**
+   * 两种时机的唯一区别：把"动画当前帧的角度"写进 DOM 的时机。
+   *
+   * 注意：用两个独立的 effect（而不是条件切换 Hook 类型），
+   * 否则会违反 React 的 Hooks 规则。
+   *
+   * 这里直接改 DOM（不 setState），所以不会触发重渲染、不会死循环。
+   */
+  useLayoutEffect(() => {
+    if (!running) return
+    const f = frameRef.current
+    // 落后了几帧？（正常情况下 useLayoutEffect 是 0）
+    const behind = Math.max(0, f - syncedFrameRef.current.layout - 1)
+    syncedFrameRef.current.layout = f
+    lagRef.current.layout += behind
+    // 绘制前同步：用**当前帧**的角度 → 严丝合缝
+    paintCube(layoutCubeRef.current, frameProgressRef.current)
+  })
+
+  useEffect(() => {
+    if (!running) return
+    const f = frameRef.current
+    const behind = Math.max(0, f - syncedFrameRef.current.effect - 1)
+    syncedFrameRef.current.effect = f
+    lagRef.current.effect += behind
+    // 绘制后同步：只能拿到**上一帧**的角度 → 恒定慢一帧
+    paintCube(effectCubeRef.current, prevProgressRef.current)
+    // 拖影：把最近几帧的角度画成幽灵
+    const history = ghostHistoryRef.current
+    ghostRefs.current.forEach((ghost, i) => {
+      const p = history[history.length - 1 - i]
+      if (ghost && p !== undefined) paintCube(ghost, p)
+    })
+  })
+
+  // 每 500ms 把 ref 里的落后帧数同步到界面（避免每帧 setState）
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(() => {
+      setLag({ ...lagRef.current })
+    }, 500)
+    return () => clearInterval(id)
+  }, [running])
 
   return (
     <div className="stack">
       <Guide
         steps={[
           <>
-            先<b>关掉</b>开关（改用 <code>useEffect</code>），点「重排一次」。
+            下面两个 <b>3D 立方体叠在一起</b>，跑的是<b>同一个旋转动画</b>（绕 X / Y 轴翻滚）。
           </>,
           <>
-            看 <b>图 2</b>：中间那一帧是<b>红色</b>的 —— 方块先出现在错误位置，下一帧才跳到正确位置，这就是<b>闪烁</b>。
+            <b style={{ color: 'var(--success)' }}>绿色</b>用 <b>useLayoutEffect</b> 同步角度：绘制<b>之前</b>就改好了，
+            用的是<b>当前帧</b>的角度 → <b>丝滑</b>。
           </>,
           <>
-            再<b>打开</b>开关（改用 <code>useLayoutEffect</code>），重复点一次。中间帧变成<b>绿色</b>，用户看不到错误位置。
+            <b style={{ color: 'var(--error)' }}>红色</b>用 <b>useEffect</b> 同步角度：绘制<b>之后</b>才执行，
+            只能拿到<b>上一帧</b>的角度 → 恒定慢一帧 → <b>红绿重影、拖尾</b>。
+          </>,
+          <>
+            点 <b>「暂停 / 继续」</b>可以定格对比；<b>「重置」</b>清零落后帧数。
           </>,
         ]}
       />
 
       <div className="row">
-        <label className="switch">
-          <input type="checkbox" checked={useLayout} onChange={(event) => setUseLayout(event.target.checked)} />
-          <span>使用 useLayoutEffect（关掉则用 useEffect）</span>
-        </label>
-        <button type="button" className="btn" onClick={() => setTick((value) => value + 1)}>
-          重排一次（同一个方块，两种时机）
+        <button type="button" className="btn btn--primary" onClick={() => setRunning((v) => !v)}>
+          {running ? '暂停' : '继续'}
         </button>
-        <span className="hint">第 {tick} 次</span>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            lagRef.current = { effect: 0, layout: 0 }
+            syncedFrameRef.current = { effect: -1, layout: -1 }
+            setLag({ effect: 0, layout: 0 })
+          }}
+        >
+          重置
+        </button>
+        <span className="hint">旋转周期 {ANIM_PERIOD_MS} ms</span>
       </div>
 
-      {/* key 里带上 tick：每次点击都换一个新组件，保证 effect 一定重新执行 */}
-      <div className="grid-2">
-        <TimedEffectProbe key={`layout-${tick}`} tick={tick} useLayoutEffect onCost={(ms) => setCostHistory((list) => [...list.slice(-23), ms])} />
-        <TimedEffectProbe key={`effect-${tick}`} tick={tick} useLayoutEffect={false} />
+      {/* 两个立方体**重叠**在同一舞台：错位 = 红绿重影，一眼可见 */}
+      <div className="stack" style={{ gap: 6 }}>
+        <span className="hint" style={{ fontSize: 12, textAlign: 'center' }}>
+          <b style={{ color: 'var(--success)' }}>绿 = useLayoutEffect</b>（绘制前同步，不落后）
+          &nbsp;·&nbsp;
+          <b style={{ color: 'var(--error)' }}>红 = useEffect</b>（绘制后同步，落后 {lag.effect} 帧）
+        </span>
+        <div className="effect-stage effect-stage--overlay">
+          {/* 底层：useLayoutEffect 立方体（绿） */}
+          <div ref={layoutCubeRef} className="effect-cube effect-cube--good">
+            {CUBE_FACES.map((face) => (
+              <div key={face} className={`effect-cube__face effect-cube__face--${face}`} />
+            ))}
+          </div>
+          {/* 拖影：useEffect 立方体最近几帧的幽灵 */}
+          {Array.from({ length: GHOST_FRAMES }).map((_, i) => (
+            <div
+              key={i}
+              ref={(el) => {
+                ghostRefs.current[i] = el
+              }}
+              className="effect-ghost"
+            >
+              {CUBE_FACES.map((face) => (
+                <div key={face} className={`effect-cube__face effect-cube__face--${face}`} />
+              ))}
+            </div>
+          ))}
+          {/* 上层：useEffect 立方体（红） */}
+          <div ref={effectCubeRef} className="effect-cube effect-cube--bad">
+            {CUBE_FACES.map((face) => (
+              <div key={face} className={`effect-cube__face effect-cube__face--${face}`} />
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* 图 1：过程 —— 每一次重排的实测耗时，实时跳动 */}
+      <div className="verdict verdict--bad">
+        <span className="verdict__icon">⚠️</span>
+        <span>
+          <b>useEffect</b> 在浏览器绘制之后才执行：动画每一帧算出的新角度，要等到<b>下一帧</b>才生效 ——
+          立方体永远落后一帧，连续旋转里就表现为<b>抖动、撕裂</b>。
+        </span>
+      </div>
+
+      <div className="verdict verdict--good">
+        <span className="verdict__icon">✅</span>
+        <span>
+          <b>useLayoutEffect</b> 在浏览器绘制之前同步执行：位置修正和 DOM 更新在<b>同一帧</b>完成 ——
+          方块和动画帧严丝合缝，<b>丝滑</b>。
+        </span>
+      </div>
+
+      {/* 补充证据：落后帧数（客观测量） */}
       <div className="chart-block">
         <div className="chart-block__head">
           <span className="chart-block__no">图 1</span>
-          <span className="chart-block__title">每一次「重排一次」的实测耗时</span>
-          <span className="chart-block__sub">过程 · 每点一次就多一根柱子</span>
-        </div>
-        <LiveBars
-          values={costHistory}
-          max={200}
-          warnAt={40}
-          badAt={120}
-          unit="ms"
-          emptyText="点几次「重排一次」，这里会出现每次的实测耗时"
-        />
-      </div>
-
-      {/* 图 2：结论 —— 两种时机的可见中间态帧数 + 三帧可视化 */}
-      <div className="chart-block">
-        <div className="chart-block__head">
-          <span className="chart-block__no">图 2</span>
-          <span className="chart-block__title">用户实际看到的帧</span>
-          <span className="chart-block__sub">结论 · 切换开关，看中间态会不会被看见</span>
+          <span className="chart-block__title">累计「落后帧数」</span>
+          <span className="chart-block__sub">补充证据 · 动画跑得越久，差距越大</span>
         </div>
         <CompareBar
           items={[
-            { label: 'useEffect', value: 1, tone: 'bad', note: '多出 1 帧可见的错误位置' },
-            { label: 'useLayoutEffect', value: 0, tone: 'good', note: '错误位置在绘制前就被修正' },
+            { label: 'useEffect', value: lag.effect, tone: 'bad', note: '绘制后同步 → 每帧都慢一拍' },
+            { label: 'useLayoutEffect', value: lag.layout, tone: 'good', note: '绘制前同步 → 不落后' },
           ]}
           unit="帧"
-          max={1}
+          max={Math.max(10, lag.effect, lag.layout)}
         />
-        <div className="flicker">
-          <div className="flicker__title">
-            <span>每次点「重排一次」都会重演这三帧</span>
-            <span className={`flicker__verdict flicker__verdict--${useLayout ? 'good' : 'bad'}`}>
-              {useLayout ? '✅ 没有可见的中间态' : '❌ 有 1 帧可见的中间态'}
-            </span>
-          </div>
-          <div className="flicker__frames">
-            <div className="flicker__frame">
-              <div className="flicker__dot" />
-              <span>第 1 帧 · 起点</span>
-            </div>
-            <div className={`flicker__frame ${useLayout ? '' : 'is-flash'}`}>
-              <div className="flicker__dot" />
-              <span>{useLayout ? '第 2 帧 · 已修正（看不到）' : '第 2 帧 · 错误位置 ⚠️'}</span>
-            </div>
-            <div className="flicker__frame is-final">
-              <div className="flicker__dot" />
-              <span>第 3 帧 · 终点</span>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className={`verdict verdict--${useLayout ? 'good' : 'bad'}`}>
-        <span className="verdict__icon">{useLayout ? '✅' : '⚠️'}</span>
-        <span>
-          {useLayout
-            ? 'useLayoutEffect 在浏览器绘制之前同步执行，位置修正和 DOM 更新在同一帧完成，用户看不到中间态。'
-            : 'useEffect 在浏览器绘制之后才执行，用户会先看到"错误位置"的那一帧，然后才跳到正确位置 —— 视觉上就是闪一下。'}
-        </span>
+      {/* 重点：什么时候该用 useLayoutEffect */}
+      <div className="panel" style={{ marginBottom: 0 }}>
+        <h4 className="panel__title">什么时候该用 useLayoutEffect？</h4>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>场景</th>
+              <th>用哪个</th>
+              <th>为什么</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <b>读取布局 → 立刻改样式</b>
+                <br />
+                <span className="hint">测量 DOM 尺寸、滚动定位、tooltip 定位、动画起点</span>
+              </td>
+              <td>
+                <b style={{ color: 'var(--success)' }}>useLayoutEffect</b>
+              </td>
+              <td>必须在绘制前修正，否则用户会看到"先错后对"的闪烁</td>
+            </tr>
+            <tr>
+              <td>
+                <b>请求数据、订阅、打日志、埋点</b>
+              </td>
+              <td>
+                <b style={{ color: 'var(--primary)' }}>useEffect</b>
+              </td>
+              <td>这些不关心绘制时机，用 useEffect 不会阻塞绘制</td>
+            </tr>
+            <tr>
+              <td>
+                <b>服务端渲染（SSR）</b>
+              </td>
+              <td>
+                <b style={{ color: 'var(--warning)' }}>避免 useLayoutEffect</b>
+              </td>
+              <td>服务端没有 DOM，会报警告；需要时改用 useEffect 或 <code>useIsomorphicLayoutEffect</code></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <p className="hint">
-        代价：<code>useLayoutEffect</code> 会<b>阻塞绘制</b>。上面每次重排都模拟了 {LAYOUT_COST_MS}ms 的测量工作，
-        如果这段工作很重，页面反而会卡。所以规则是：<b>凡是「读取布局 → 立刻改样式」才用它</b>（测量 DOM、滚动定位、tooltip 定位、动画起点），
-        其余所有场景（请求、订阅、日志）一律用 <code>useEffect</code>。
+        <b>代价：</b><code>useLayoutEffect</code> 会<b>阻塞绘制</b>。上面每一帧都在同步位置，
+        如果这段工作很重，页面反而会卡。所以规则是：<b>只有「读取布局 → 立刻改样式」才用它</b>，
+        其余所有场景一律用 <code>useEffect</code>。
       </p>
-    </div>
-  )
-}
-
-/**
- * 同一个方块，两种 effect 时机。
- *
- * - useLayoutEffect：绘制前同步执行 → 用户看不到中间态，但会阻塞绘制
- * - useEffect：绘制后异步执行 → 用户能看到"先这样、再那样"的闪烁
- */
-function TimedEffectProbe({
-  tick,
-  useLayoutEffect: useLayout,
-  onCost,
-}: {
-  tick: number
-  useLayoutEffect: boolean
-  /** 把这次重排的实测耗时上报给父组件（用于画柱形图） */
-  onCost?: (ms: number) => void
-}) {
-  const blockRef = useRef<HTMLDivElement>(null)
-
-  // 两种时机共用同一段逻辑，方便对照
-  function reposition() {
-    const started = performance.now()
-    // 模拟"读取布局 → 计算 → 写样式"这套不可避免的同步操作
-    simulateWork(LAYOUT_COST_MS)
-    if (blockRef.current) {
-      // 用一个随 tick 变化的偏移，让位置每次都不一样
-      const pct = 8 + ((tick * 37) % 84)
-      blockRef.current.style.marginLeft = `${pct}%`
-      blockRef.current.dataset.done = '1'
-    }
-    onCost?.(performance.now() - started)
-  }
-
-  const EffectHook = useLayout ? useLayoutEffect : useEffect
-
-  EffectHook(() => {
-    reposition()
-  }, [tick])
-
-  return (
-    <div className="stack" style={{ gap: 6 }}>
-      <p className="hint" style={{ margin: 0 }}>
-        <b style={{ color: useLayout ? 'var(--success)' : 'var(--error)' }}>
-          {useLayout ? 'useLayoutEffect' : 'useEffect'}
-        </b>
-        <span style={{ marginLeft: 8, fontSize: 11 }}>
-          {useLayout ? '绘制前执行 → 无闪烁' : '绘制后执行 → 会闪一下'}
-        </span>
-      </p>
-      <div className="effect-track">
-        <div className="effect-block" ref={blockRef} />
-      </div>
-      <span className="hint" style={{ fontSize: 11 }}>
-        {useLayout ? '这一帧用户只看到最终位置' : '先渲染在起点 → 绘制 → 再跳到终点'}
-      </span>
     </div>
   )
 }
@@ -740,7 +852,7 @@ return (
         title="Demo 3｜useEffect vs useLayoutEffect：时机决定了会不会闪"
         tag="API（必讲）"
         tone="bad"
-        desc="两个 effect 长得几乎一样，区别只在「什么时候执行」。而这一点差异，直接决定了用户会不会看到闪烁。"
+        desc="两个 3D 立方体跑同一个旋转动画，唯一区别是用哪种 effect 同步角度。左边 useEffect 永远慢一帧 → 抖动、撕裂；右边 useLayoutEffect 严丝合缝 → 丝滑。"
         codeTone="good"
         code={`// ❌ useEffect：绘制之后才改样式 → 用户先看到旧位置，再看到跳动
 useEffect(() => {

@@ -871,25 +871,90 @@ input[type='range'] {
 
 /* ---------- effect 时机对照（第 07 章 useLayoutEffect） ---------- */
 
-.effect-track {
+/* 3D 舞台：给立方体一个透视视角 */
+.effect-stage {
   position: relative;
-  height: 34px;
+  height: 200px;
   border-radius: var(--radius);
-  background: var(--fill-tertiary);
+  background: radial-gradient(circle at 50% 45%, var(--fill-tertiary), var(--fill-quaternary));
   border: 1px solid var(--border-secondary);
   overflow: hidden;
+  perspective: 700px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.effect-block {
+/* 立方体容器：保留 3D 空间 */
+.effect-cube {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  transform-style: preserve-3d;
+  /* 故意不加 transition：旋转必须由 JS 每帧驱动，
+     否则 CSS 平滑动画会把"慢一帧"抹平。 */
+}
+
+/* 重叠对比：两个立方体叠在同一个舞台中心 */
+.effect-stage--overlay .effect-cube {
   position: absolute;
-  top: 5px;
-  left: 5px;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  background: var(--primary);
-  /* 用 transform 走动画，避免触发布局 —— 顺带也是"只动 transform/opacity"的示范 */
-  transition: margin-left 300ms cubic-bezier(0.645, 0.045, 0.355, 1);
+  top: 50%;
+  left: 50%;
+  margin: -36px 0 0 -36px;
+}
+
+/* 立方体的 6 个面 */
+.effect-cube__face {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  backface-visibility: visible;
+}
+
+/* 六个面的位置（边长 72px，半边长 36px） */
+.effect-cube__face--front  { transform: translateZ(36px); }
+.effect-cube__face--back   { transform: rotateY(180deg) translateZ(36px); }
+.effect-cube__face--right  { transform: rotateY(90deg) translateZ(36px); }
+.effect-cube__face--left   { transform: rotateY(-90deg) translateZ(36px); }
+.effect-cube__face--top    { transform: rotateX(90deg) translateZ(36px); }
+.effect-cube__face--bottom { transform: rotateX(-90deg) translateZ(36px); }
+
+/* useEffect 的立方体：半透明红，叠在上层 → 错位时露出下面的绿立方体 */
+.effect-cube--bad .effect-cube__face {
+  border-color: rgba(255, 77, 79, 0.9);
+  mix-blend-mode: screen;
+}
+
+/* useLayoutEffect 的立方体：半透明绿，垫在底层 */
+.effect-cube--good .effect-cube__face {
+  border-color: rgba(82, 196, 26, 0.9);
+  mix-blend-mode: screen;
+}
+
+/* 拖影：useEffect 立方体保留前几帧的幽灵，让"慢"变成可见的拖尾 */
+.effect-ghost {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  margin: -36px 0 0 -36px;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  opacity: 0.18;
+}
+
+.effect-ghost .effect-cube__face {
+  border-color: rgba(255, 77, 79, 0.9);
+  background: transparent !important;
 }
 
 /* ---------- 指标（对应 antd Statistic） ---------- */
@@ -1676,99 +1741,6 @@ input[type='range'] {
   grid-column: 2 / -1;
   font-size: 11px;
   color: var(--text-mute);
-}
-
-/* ---------- 闪烁帧可视化（Demo 3） ---------- */
-
-.flicker {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-secondary);
-  background: var(--fill-quaternary);
-}
-
-.flicker__title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-mute);
-}
-
-.flicker__verdict {
-  font-weight: 600;
-}
-
-.flicker__verdict--good {
-  color: #389e0d;
-}
-
-.flicker__verdict--bad {
-  color: var(--error);
-}
-
-.flicker__frames {
-  display: flex;
-  gap: 6px;
-}
-
-.flicker__frame {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 4px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-secondary);
-  background: var(--bg-container);
-  font-size: 10px;
-  color: var(--text-mute);
-}
-
-.flicker__frame.is-flash {
-  border-color: var(--error);
-  background: var(--error-bg);
-  color: var(--error);
-  font-weight: 600;
-}
-
-.flicker__frame.is-final {
-  border-color: var(--success);
-  background: var(--success-bg);
-  color: #389e0d;
-  font-weight: 600;
-}
-
-.flicker__dot {
-  width: 100%;
-  height: 18px;
-  border-radius: var(--radius-sm);
-  background: var(--fill-secondary);
-  position: relative;
-}
-
-.flicker__dot::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--primary);
-  transition: left 200ms;
-}
-
-.flicker__frame.is-flash .flicker__dot::after {
-  background: var(--error);
-}
-
-.flicker__frame.is-final .flicker__dot::after {
-  background: var(--success);
 }
 
 /* ---------- 冻结时长大字（Demo 2） ---------- */
