@@ -1,5 +1,4 @@
 import { memo, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { flushSync } from 'react-dom'
 import { CompareBar } from '../components/CompareBar'
 import { DemoCard } from '../components/DemoCard'
 import { InputLagProbe, useInputLag } from '../components/InputLagProbe'
@@ -651,153 +650,6 @@ function TimedEffectProbe({
 }
 
 /* =========================================================================
-   Demo 4：flushSync —— 主动放弃并发特性的"反面教材"
-   ========================================================================= */
-
-function FlushSyncDemo() {
-  const renders = useRenderCount('FlushSyncDemo')
-  const [items, setItems] = useState<string[]>([])
-  const [mode, setMode] = useState<'normal' | 'flush'>('normal')
-  const [readCount, setReadCount] = useState<number | null>(null)
-  const [readMode, setReadMode] = useState<'normal' | 'flush'>('normal')
-  // 每次点击"立刻读到的 DOM 数量"，画成会跳动的柱形图
-  const [readHistory, setReadHistory] = useState<number[]>([])
-  const listRef = useRef<HTMLDivElement>(null)
-
-  function add(inFlush: boolean) {
-    const task = () => {
-      setItems((list) => [...list, `任务 #${list.length + 1}`])
-      setMode(inFlush ? 'flush' : 'normal')
-    }
-
-    if (inFlush) {
-      // ⚠️ flushSync 会强制这次更新立刻同步渲染、立刻提交
-      flushSync(task)
-    } else {
-      task()
-    }
-
-    // 这一行是 Demo 的关键：普通模式下它会在"渲染之前"执行，
-    // 而 flushSync 之后 DOM 已经被更新完了。
-    // 注意要读的是列表容器（listRef），不是日志这一行自己。
-    const count = listRef.current ? listRef.current.querySelectorAll('.tag').length : 0
-    setReadCount(count)
-    setReadHistory((list) => [...list.slice(-23), count])
-    setReadMode(inFlush ? 'flush' : 'normal')
-  }
-
-  const expected = items.length
-
-  return (
-    <div className="stack">
-      <Guide
-        steps={[
-          <>
-            先点左边的 <b>「普通 setState」</b>，看 <b>图 2</b>：<b>「点击后立刻读 DOM」</b> 读到的是<b>旧数量</b>（比实际少 1）。
-          </>,
-          <>
-            再点右边的 <b>「用 flushSync 包住」</b>：读到的数量<b>和实际一致</b>，因为 DOM 已经被强制同步更新了。
-          </>,
-          <>
-            记住结论：<b>只有"写完必须立刻读 DOM"才用 flushSync</b>，它会让这次更新无法被中断。
-          </>,
-        ]}
-      />
-
-      <div className="row">
-        <button type="button" className="btn" onClick={() => add(false)}>
-          普通 setState
-        </button>
-        <button type="button" className="btn btn--danger" onClick={() => add(true)}>
-          用 flushSync 包住
-        </button>
-        <button type="button" className="btn btn--ghost" onClick={() => setItems([])}>
-          清空
-        </button>
-        <RenderBadge name="FlushSyncDemo" count={renders} />
-        {mode === 'flush' ? <span className="tag tag--soft">上一次用了 flushSync</span> : null}
-      </div>
-
-      <div className="row" ref={listRef} style={{ flexWrap: 'wrap', gap: 6, minHeight: 26 }}>
-        {items.map((item) => (
-          <span className="tag tag--soft" key={item}>
-            {item}
-          </span>
-        ))}
-      </div>
-
-      {/* 图 1：过程 —— 每一次点击后立刻读到的 DOM 数量，实时跳动 */}
-      <div className="chart-block">
-        <div className="chart-block__head">
-          <span className="chart-block__no">图 1</span>
-          <span className="chart-block__title">每次点击后「立刻读到的 DOM 数量」</span>
-          <span className="chart-block__sub">过程 · 每点一次就多一根柱子</span>
-        </div>
-        <LiveBars
-          values={readHistory}
-          max={Math.max(6, expected + 1)}
-          warnAt={Number.MAX_SAFE_INTEGER}
-          badAt={Number.MAX_SAFE_INTEGER}
-          unit="个"
-          emptyText="点几次按钮，这里会出现每次读到的 DOM 数量"
-        />
-      </div>
-
-      {/* 图 2：结论 —— 读到的数量 vs 实际数量，并排对比 */}
-      <div className="chart-block">
-        <div className="chart-block__head">
-          <span className="chart-block__no">图 2</span>
-          <span className="chart-block__title">读到的数量 vs 实际数量</span>
-          <span className="chart-block__sub">结论 · 两根柱子一样长 = 读对了</span>
-        </div>
-        <CompareBar
-          items={[
-            {
-              label: '点击后立刻读 DOM',
-              value: readCount ?? 0,
-              tone: readMode === 'flush' ? 'good' : 'bad',
-              note:
-                readCount === null
-                  ? '还没点过按钮'
-                  : readMode === 'flush'
-                    ? `读到 ${readCount} 个，和实际一致 ✅`
-                    : `读到 ${readCount} 个，实际已有 ${expected} 个 ⚠️`,
-            },
-            {
-              label: '实际 DOM 里的任务数',
-              value: expected,
-              tone: 'default',
-              note: '这是 React 提交之后真实存在的节点数',
-            },
-          ]}
-          unit="个"
-        />
-      </div>
-
-      <div className={`verdict verdict--${readMode === 'flush' ? 'good' : 'bad'}`}>
-        <span className="verdict__icon">{readMode === 'flush' ? '✅' : '⚠️'}</span>
-        <span>
-          {readMode === 'flush'
-            ? 'flushSync：更新被强制同步提交，所以紧接着读 DOM 就能拿到最新值。'
-            : '普通更新：setState 只是"排队"，DOM 还没变，所以紧接着读 DOM 拿到的是旧值。'}
-        </span>
-      </div>
-
-      <p className="hint">
-        这正是 flushSync 的用途：<b>少数必须"写完立刻读 DOM"的场景</b>，比如先测量再弹层、把某个节点滚到可视区、
-        配合第三方非 React 图表库同步尺寸。
-      </p>
-      <p className="hint" style={{ color: 'var(--error)' }}>
-        ⚠️ 但它的代价是：<b>强制同步渲染，等于主动关掉并发特性</b> —— 这次更新不能被中断、不能被打断优先级，
-        而且会打断批处理（可能多渲染几次）。在渲染很贵的页面上用它会直接掉帧。
-        结论：<b>默认永远不要用，只在"测量 DOM 后立刻操作 DOM"这一种场景下用，并且包在最小范围里。</b>
-        如果只是想刷新 DOM 同步更新，优先考虑改用 <code>useLayoutEffect</code>。
-      </p>
-    </div>
-  )
-}
-
-/* =========================================================================
    页面
    ========================================================================= */
 
@@ -808,7 +660,7 @@ export default function ConcurrentPage() {
         index="07"
         title="并发渲染特性"
         subtitle="useTransition 和 useDeferredValue 是 React 18 给的两个「体感优化」利器：它们不会让渲染变快，但能让重要的交互不被慢渲染挡住。本章还会讲清两个决定「会不会闪」的时机类 API。"
-        tags={['useTransition', 'useDeferredValue', 'useLayoutEffect', 'flushSync', '并发渲染']}
+        tags={['useTransition', 'useDeferredValue', 'useLayoutEffect', '并发渲染']}
       />
 
       <Panel title="并发渲染到底改变了什么">
@@ -911,35 +763,6 @@ useEffect(() => {
         <LayoutEffectDemo />
       </DemoCard>
 
-      <DemoCard
-        title="Demo 4｜flushSync：主动放弃并发特性的反面教材"
-        tone="bad"
-        desc="它能让你「更新完立刻读到新 DOM」，代价是这次更新彻底失去并发能力。"
-        codeTone="good"
-        code={`// ❌ 用 flushSync 只是为了"更新后立刻读 DOM"
-function handleClick() {
-  flushSync(() => setOpen(true))
-  // 现在 DOM 已经更新了，可以测量了
-  const rect = popoverRef.current.getBoundingClientRect()
-  // ⚠️ 但这次更新失去了并发能力，还可能多渲染
-}
-
-// ✅ 更好的写法：用 useLayoutEffect，绘制前自动拿到最新布局
-function Popover({ open }) {
-  useLayoutEffect(() => {
-    if (!open) return
-    const rect = popoverRef.current.getBoundingClientRect()
-    // 在这里定位，不破坏并发调度
-  }, [open])
-}
-
-// ⚠️ flushSync 也会打断批处理
-flushSync(() => setA(1))
-flushSync(() => setB(2))   // 两次渲染，而不是一次`}
-      >
-        <FlushSyncDemo />
-      </DemoCard>
-
       <Panel title="useDeferredValue vs 手写 debounce">
         <table className="table">
           <thead>
@@ -987,9 +810,6 @@ flushSync(() => setB(2))   // 两次渲染，而不是一次`}
           <li>不要用它包裹受控输入框的 onChange，会让输入变卡；反过来，用它包裹「由输入引起的慢列表更新」才对。</li>
           <li>并发特性要求 React 18+ 的 createRoot，且只在「渲染真的慢」的时候才有价值 —— 渲染很快的组件加了它反而多一次渲染。</li>
           <li>配合 Suspense 使用时，注意 transition 期间的 fallback 行为：React 会尽量保留旧内容，而不是闪一下骨架屏。</li>
-          <li>
-            <code>flushSync</code> 与本章其它 API 正好相反：它是「退出并发模式」的开关，属于逃生舱，不属于优化手段。
-          </li>
         </ul>
       </Panel>
     </>
