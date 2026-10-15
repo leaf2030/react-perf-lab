@@ -224,7 +224,7 @@ export default function ComparePage() {
               <td>
                 <b style={{ color: 'var(--warn)' }}>⚠️ 这条结论已更新</b>：过去说"没有等价物"，
                 现在官方有了。<code>&lt;Activity mode="hidden"&gt;</code> 保留 state 和 DOM，同时停掉内部 Effect。
-                React 19.2 之前只能靠「状态提升到 store」或保持组件挂载来模拟。详见第 10 章。
+                React 19.2 之前只能靠「状态提升到 store」或保持组件挂载来模拟。
               </td>
             </tr>
             <tr>

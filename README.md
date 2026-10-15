@@ -50,9 +50,8 @@ npm run lint       # oxlint
 | 07 | `/concurrent` | 并发渲染特性 | `useDeferredValue` 让输入框永远跟手 / `useTransition` 让慢操作后台化 / **`useEffect` vs `useLayoutEffect` 的闪烁对比** / **`flushSync` 反面教材** |
 | 08 | `/profiler` | 用 Profiler 量化性能 | `<Profiler>` 埋点实时对比优化前后 / actualDuration vs baseDuration / 度量流程 |
 | 09 | `/compare` | Vue ↔ React 对照 | 心智模型差异 / API 对照表 / 代码对照 / 从 Vue 过来最容易踩的 7 个坑 |
-| 10 | `/react19` | React 19 性能新特性 | `useOptimistic` 感知性能 / `useActionState` / Suspense + transition 消除闪烁 / **`<Activity>`（KeepAlive 的对应物）** / React Compiler |
 
-### 建议的时间分配（约 75 分钟）
+### 建议的时间分配（约 65 分钟）
 
 | 时长 | 内容 |
 | --- | --- |
@@ -61,10 +60,8 @@ npm run lint       # oxlint
 | 15 min | 数据层：Context 陷阱 + 长列表虚拟化（04~05） |
 | 12 min | 加载与并发：代码分割 + 并发特性 + 两个时机类 API（06~07） |
 | 10 min | 度量与迁移：Profiler + Vue/React 对照（08~09） |
-| 10 min | 前瞻：React 19 新特性 + React Compiler（10） |
 
-> 如果只有 60 分钟：**第 10 章压缩到 3 分钟只讲 `<Activity>` 和 React Compiler 的结论**，其余章节按上表。
-> 第 10 章不能完全跳过 —— 第 09 章有一处结论（KeepAlive）必须靠它来更正。
+> 如果只有 60 分钟：第 09 章的 API 对照速查表挑重点讲，其余章节按上表。
 
 ---
 
@@ -122,8 +119,7 @@ dist/assets/
 ├── index-*.js              ~14 KB    Layout + 首屏
 ├── RerenderPage-*.js        ~14 KB   ← 每个章节一个 chunk，按需加载
 ├── MemoPage-*.js            ~16 KB
-├── ...
-└── React19Page-*.js         ~23 KB
+└── ...
 ```
 
 演示第 06 章时打开 Network 面板：切换左侧章节，可以看到对应的 chunk 被单独拉取，
@@ -141,10 +137,8 @@ dist/assets/
 6. 任何优化都要**先度量、后动手、再验证**，React DevTools 的 Profiler 是唯一权威。
 7. `useReducer` 的 `dispatch` 引用永恒不变，是最理想的「传给 memo 子组件的回调」；`useRef` 用来装
    不参与渲染的值 —— 这两条能省掉大量 `useCallback`。
-8. 分清两种「快」：**渲染快**（memo / 虚拟化）和**感知快**（`useOptimistic`、预加载、骨架屏）。
+8. 分清两种「快」：**渲染快**（memo / 虚拟化）和**感知快**（乐观更新、预加载、骨架屏）。
    业务上后者往往收益更直接。
-9. React 19.2 的 `<Activity>` 终结了「React 没有 KeepAlive 对应物」这句话；React Compiler 会让
-   手写 memo 的价值下降，但**不会让结构优化过时**。
 
 ---
 
@@ -153,6 +147,5 @@ dist/assets/
 - **第 03 章**：新增 useReducer（dispatch 恒定引用）与 useRef（不参与渲染的值）两个 Demo。
 - **第 07 章**：新增 useEffect vs useLayoutEffect 闪烁对照、flushSync 反面教材。
 - **第 09 章**：更正「KeepAlive 无等价物」的过时结论；补充 useLayoutEffect 与 nextTick 的时机辨析。
-- **第 10 章**：全新章节，React 19 性能相关新特性。
 - **工程**：顶栏新增「渲染徽章」开关；vite 配置加入 vendor 分包；修正失效的 `eslint-disable` 注释并开启
   `react-hooks/exhaustive-deps` 规则。

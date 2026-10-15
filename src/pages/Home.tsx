@@ -58,12 +58,6 @@ const CHAPTERS = [
     title: 'Vue ↔ React 性能对照',
     desc: '给 Vue 团队的心智模型迁移指南：响应式 vs 组件级调度',
   },
-  {
-    to: '/react19',
-    index: '10',
-    title: 'React 19 性能新特性',
-    desc: 'useOptimistic 感知性能、<Activity>（KeepAlive 的对应物）、React Compiler 对手写 memo 的影响',
-  },
 ]
 
 export default function Home() {

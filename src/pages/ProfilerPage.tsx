@@ -134,6 +134,7 @@ function ProfilerLab() {
 
   // 用 useCallback 固定引用：否则 ProfiledArea 会被判定为 props 变了而重渲染
   const handleRender = useCallback<ProfilerOnRenderCallback>((id, phase, actualDuration, baseDuration) => {
+    console.log('[Profiler]', { id, phase, actualDuration, baseDuration })
     setCommits((previous) =>
       [{ id, phase, actualDuration, baseDuration }, ...previous].slice(0, 10),
     )
@@ -311,7 +312,10 @@ const onRender: ProfilerOnRenderCallback = (id, phase, actualDuration, baseDurat
             用打包工具的 alias 在「性能排查环境」下切换到 profiling 版本，线上正常环境不要开：
             它会让包体积和运行开销都变大。
           </li>
-          <li>更轻量的做法：只采集 Web Vitals（LCP / INP / CLS）+ 关键交互耗时，上报到监控平台。</li>
+          <li>
+            更轻量的做法：只采集 Web Vitals —— LCP（最大内容绘制）/ INP（交互到下次绘制）/
+            CLS（累积布局偏移）—— 再加上关键交互耗时，上报到监控平台。
+          </li>
           <li>先定义一个「基线」：优化前是多少、目标是多少，数字才有意义。</li>
         </ul>
         <p className="hint">
