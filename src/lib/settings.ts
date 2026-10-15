@@ -11,8 +11,6 @@ import { useSyncExternalStore } from 'react'
 export type PerfSettings = {
   /** 单个组件「模拟渲染耗时」的毫秒数 */
   heavyMs: number
-  /** 是否在控制台打印渲染日志 */
-  logRenders: boolean
   /** 自增标记：变化时整个页面会重新挂载，用来一键重置所有渲染计数 */
   epoch: number
   /**
@@ -27,7 +25,6 @@ export type PerfSettings = {
 
 let settings: PerfSettings = {
   heavyMs: 6,
-  logRenders: false,
   epoch: 0,
   showBadges: true,
 }
@@ -61,14 +58,6 @@ export function useHeavyMs(): number {
   return useSyncExternalStore(
     perfSettings.subscribe,
     () => settings.heavyMs,
-  )
-}
-
-/** 订阅「是否打印渲染日志」 */
-export function useLogRenders(): boolean {
-  return useSyncExternalStore(
-    perfSettings.subscribe,
-    () => settings.logRenders,
   )
 }
 

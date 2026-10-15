@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { perfSettings, useEpoch, useHeavyMs, useLogRenders, useShowBadges } from '../lib/settings'
+import { perfSettings, useEpoch, useHeavyMs, useShowBadges } from '../lib/settings'
 
 type NavItem = { to: string; label: string }
 
@@ -44,7 +44,6 @@ export function Layout() {
   const location = useLocation()
   const epoch = useEpoch()
   const heavyMs = useHeavyMs()
-  const logRenders = useLogRenders()
   const showBadges = useShowBadges()
   const mainRef = useRef<HTMLElement>(null)
 
@@ -112,14 +111,6 @@ export function Layout() {
                 onChange={(event) => perfSettings.set({ showBadges: event.target.checked })}
               />
               <span>渲染徽章</span>
-            </label>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={logRenders}
-                onChange={(event) => perfSettings.set({ logRenders: event.target.checked })}
-              />
-              <span>控制台渲染日志</span>
             </label>
             <button
               type="button"
